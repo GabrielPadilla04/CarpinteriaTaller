@@ -1,0 +1,524 @@
+﻿@page "/dashboard"
+@using FrontendCarpinteria.Models
+@using FrontendCarpinteria.Services
+@using System.Text.Json
+@inject HttpClient Http
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<div class="dashboard-container">
+
+    <!-- Encabezado Estático con Notificaciones y Cerrar Sesión -->
+    <div class="d-flex align-center justify-space-between mb-4">
+        <div class="d-flex align-center gap-2">
+            <div>
+                <div class="d-flex align-center gap-1">
+                    <MudText Typo="Typo.h6" Class="fw-bold text-dark">Dashboard</MudText>
+                    <MudIcon Icon="@Icons.Material.Filled.Verified" Color="Color.Primary" Size="Size.Small" />
+                </div>
+                <MudText Typo="Typo.caption" Class="text-muted-custom">Control del Taller</MudText>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 align-center">
+            <!-- Menú Desplegable de Notificaciones Dinámico -->
+            <div style="position: relative;">
+                <div class="icon-circle-btn position-relative" @onclick="ToggleNotificaciones">
+                    <MudIcon Icon="@Icons.Material.Filled.NotificationsNone" Size="Size.Small" Style="color: #374151;" />
+                    @if (notificaciones != null && notificaciones.Any(n => !n.Leido))
+                    {
+                        <span class="notification-dot"></span>
+                    }
+                </div>
+
+                @if (mostrarNotificaciones)
+                {
+                    <div style="position: absolute; right: 0; top: 45px; width: 320px; max-height: 380px; overflow-y: auto; padding: 12px; background-color: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999;">
+                        <div class="d-flex justify-space-between align-center mb-2">
+                            <MudText Typo="Typo.subtitle2" Class="fw-bold text-dark">Notificaciones</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Text">
+                                @(notificaciones?.Count(n => !n.Leido) ?? 0) sin leer
+                            </MudChip>
+                        </div>
+                        <MudDivider Class="mb-3" />
+
+                        @if (notificaciones == null || !notificaciones.Any())
+                        {
+                            <MudText Typo="Typo.caption" Class="text-muted-custom text-center d-block py-3">No hay notificaciones.</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-column gap-2">
+                                @foreach (var noti in notificaciones)
+                                {
+                                    <div class="pa-2 rounded hover-bg @(noti.Leido ? "noti-leida" : "noti-noleida")"
+                                         @onclick="() => MarcarLeida(noti)" style="cursor: pointer;">
+                                        <div class="d-flex justify-space-between align-center">
+                                            <MudText Typo="Typo.caption" Class="fw-bold text-dark d-block">📌 @noti.Titulo</MudText>
+                                            <MudText Typo="Typo.caption" Style="font-size: 10px; color: #9ca3af;">@noti.FechaHora.ToString("dd/MM HH:mm")</MudText>
+                                        </div>
+                                        <MudText Typo="Typo.caption" Class="text-muted-custom d-block mt-1">@noti.Mensaje</MudText>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Botón de Cerrar Sesión (Logout) -->
+            <div class="icon-circle-btn" @onclick="CerrarSesion" title="Cerrar Sesión">
+                <MudIcon Icon="@Icons.Material.Filled.Logout" Size="Size.Small" Style="color: #ef4444;" />
+            </div>
+        </div>
+    </div>
+
+    <!-- Banner "Mi Taller" -->
+    <MudPaper Elevation="0" Class="pa-4 mb-4 text-white d-flex justify-space-between align-center banner-taller">
+        <div>
+            <MudText Typo="Typo.h6" Class="fw-bold text-white">Mi Taller</MudText>
+            <MudText Typo="Typo.body2" Style="opacity: 0.8; font-size: 12px;">Control de proyectos y mediciones.</MudText>
+        </div>
+        <MudIcon Icon="@Icons.Material.Filled.Videocam" Size="Size.Large" Style="opacity: 0.9;" />
+    </MudPaper>
+
+    <!-- Sección: Visitas y Entregas de Hoy -->
+    <MudPaper Elevation="0" Class="pa-4 mb-4 card-section">
+        <div class="d-flex align-center gap-2 mb-1">
+            <MudText Typo="Typo.subtitle1" Class="fw-bold text-dark">Visitas y Entregas de Hoy</MudText>
+            <span class="custom-badge">@(visitasHoy?.Count ?? 0)</span>
+        </div>
+        <MudText Typo="Typo.caption" Class="text-muted-custom d-block mb-3">Cronograma del día</MudText>
+
+        @if (isLoading)
+        {
+            <div class="d-flex justify-center my-4">
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Dark" />
+            </div>
+        }
+        else if (visitasHoy == null || !visitasHoy.Any())
+        {
+            <MudText Typo="Typo.body2" Class="text-muted-custom text-center py-2">No hay visitas o entregas programadas para hoy.</MudText>
+        }
+        else
+        {
+            @foreach (var visita in visitasHoy)
+            {
+                <MudPaper Elevation="0" Class="pa-3 mb-3 d-flex flex-column gap-2 sub-card">
+                    <div class="d-flex align-center justify-space-between">
+                        <div class="d-flex align-center gap-2">
+                            <MudAvatar Style="background-color: #181c24; color: white;" Size="Size.Small">
+                                <MudIcon Icon="@Icons.Material.Filled.Videocam" Size="Size.Small" />
+                            </MudAvatar>
+                            <MudText Typo="Typo.body2" Class="fw-bold text-dark" Style="font-size: 13px;">@visita.Titulo</MudText>
+                        </div>
+                    </div>
+                    <div class="d-flex align-center justify-space-between">
+                        <div class="d-flex align-center gap-1">
+                            <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Class="text-muted-custom" />
+                            <MudText Typo="Typo.caption" Class="text-muted-custom">@visita.Horario</MudText>
+                        </div>
+                        <MudButton Variant="Variant.Filled" Size="Size.Small" Class="btn-detalle" OnClick="() => VerDetalleVisita(visita.Id)">Detalles</MudButton>
+                    </div>
+                </MudPaper>
+            }
+        }
+    </MudPaper>
+
+    <!-- Sección: Proyectos Activos -->
+    <MudPaper Elevation="0" Class="pa-4 mb-4 card-section">
+        <div class="d-flex align-center gap-2 mb-1">
+            <MudText Typo="Typo.subtitle1" Class="fw-bold text-dark">Proyectos Activos</MudText>
+            <span class="custom-badge">@(proyectosActivos?.Count ?? 0)</span>
+        </div>
+        <MudText Typo="Typo.caption" Class="text-muted-custom d-block mb-3">Estado de fabricación actual</MudText>
+
+        @if (isLoading)
+        {
+            <div class="d-flex justify-center my-4">
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Dark" />
+            </div>
+        }
+        else if (proyectosActivos == null || !proyectosActivos.Any())
+        {
+            <MudText Typo="Typo.body2" Class="text-muted-custom text-center py-2">No hay proyectos activos en curso.</MudText>
+        }
+        else
+        {
+            @foreach (var proyecto in proyectosActivos)
+            {
+                <MudPaper Elevation="0" Class="pa-3 d-flex flex-column gap-3 sub-card mb-3">
+                    <div class="d-flex align-center gap-2">
+                        <MudAvatar Style="background-color: #181c24; color: white;" Size="Size.Small">
+                            <MudIcon Icon="@Icons.Material.Filled.FlashOn" Size="Size.Small" />
+                        </MudAvatar>
+                        <MudText Typo="Typo.body2" Class="fw-bold text-dark" Style="font-size: 13px;">@proyecto.Nombre</MudText>
+                    </div>
+
+                    <div>
+                        <span class="chip-fabricacion">⚪ @proyecto.Estado</span>
+                    </div>
+
+                    <MudProgressLinear Color="Color.Dark" Value="proyecto.PorcentajeProgreso" Class="my-1 custom-progress" />
+
+                    <div class="d-flex align-center justify-end gap-3 mt-1">
+                        <div class="d-flex align-center gap-1">
+                            <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Class="text-muted-custom" />
+                            <MudText Typo="Typo.caption" Class="text-muted-custom">@proyecto.FechaEntrega</MudText>
+                        </div>
+                        <div class="d-flex align-center gap-1">
+                            <MudIcon Icon="@Icons.Material.Filled.ChatBubbleOutline" Size="Size.Small" Class="text-muted-custom" />
+                            <MudText Typo="Typo.caption" Class="text-muted-custom">@proyecto.ComentariosCount</MudText>
+                        </div>
+                    </div>
+                </MudPaper>
+            }
+        }
+    </MudPaper>
+
+    <!-- Barra de Navegación Inferior -->
+    <div class="bottom-nav">
+        <div class="nav-item active">
+            <MudIcon Icon="@Icons.Material.Filled.Home" Size="Size.Medium" />
+            <div class="nav-indicator"></div>
+        </div>
+        <div class="nav-item">
+            <MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" Size="Size.Medium" />
+        </div>
+        <div class="nav-item">
+            <MudIcon Icon="@Icons.Material.Outlined.Assignment" Size="Size.Medium" />
+        </div>
+        <div class="nav-item">
+            <MudIcon Icon="@Icons.Material.Outlined.Receipt" Size="Size.Medium" />
+        </div>
+        <div class="nav-item">
+            <MudIcon Icon="@Icons.Material.Outlined.Layers" Size="Size.Medium" />
+        </div>
+    </div>
+</div>
+
+<style>
+    .dashboard-container {
+        max-width: 480px;
+        margin: 0 auto;
+        background-color: #f4f6f9;
+        min-height: 100vh;
+        padding: 20px 16px 80px 16px;
+        box-sizing: border-box;
+        font-family: inherit;
+    }
+
+    .text-dark {
+        color: #111827 !important;
+    }
+
+    .text-muted-custom {
+        color: #6b7280 !important;
+        font-size: 12px;
+    }
+
+    .icon-circle-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background-color: #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+        .icon-circle-btn:hover {
+            background-color: #d1d5db;
+        }
+
+    .notification-dot {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 10px;
+        height: 10px;
+        background-color: #ef4444;
+        border-radius: 50%;
+        border: 2px solid #ffffff;
+    }
+
+    .noti-noleida {
+        background-color: #f0f4ff;
+        border-left: 3px solid #2563eb;
+    }
+
+    .noti-leida {
+        background-color: #f9fafb;
+        opacity: 0.7;
+    }
+
+    .banner-taller {
+        background-color: #1e2530 !important;
+        border-radius: 16px !important;
+    }
+
+    .card-section {
+        background-color: #ffffff !important;
+        border-radius: 16px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02) !important;
+    }
+
+    .sub-card {
+        background-color: #f8f9fa !important;
+        border-radius: 12px !important;
+        border: 1px solid #e9ecef !important;
+    }
+
+    .custom-badge {
+        background-color: #2563eb;
+        color: white;
+        font-size: 11px;
+        font-weight: bold;
+        padding: 1px 7px;
+        border-radius: 10px;
+    }
+
+    .btn-detalle {
+        background-color: #181c24 !important;
+        color: white !important;
+        border-radius: 8px !important;
+        text-transform: none !important;
+        font-size: 11px !important;
+        padding: 4px 12px !important;
+    }
+
+    .chip-fabricacion {
+        background-color: #e5e7eb;
+        color: #374151;
+        font-size: 11px;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-weight: 500;
+    }
+
+    .custom-progress {
+        height: 6px !important;
+        border-radius: 3px !important;
+        background-color: #e5e7eb !important;
+    }
+
+    .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background: #181c24;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        z-index: 1000;
+        max-width: 480px;
+        margin: 0 auto;
+    }
+
+    .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: #9ca3af;
+        cursor: pointer;
+        position: relative;
+        padding: 8px;
+    }
+
+        .nav-item.active {
+            color: #ffffff;
+        }
+
+    .nav-indicator {
+        position: absolute;
+        bottom: 4px;
+        width: 16px;
+        height: 2px;
+        background-color: white;
+        border-radius: 2px;
+    }
+
+    .hover-bg {
+        transition: background-color 0.2s ease;
+    }
+
+        .hover-bg:hover {
+            background-color: #e5e7eb;
+        }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private bool mostrarNotificaciones = false;
+    private List<VisitaDto>? visitasHoy;
+    private List<ProyectoActivoDto>? proyectosActivos;
+    private List<NotificacionDto>? notificaciones;
+
+    private readonly JsonSerializerOptions jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatosDashboard();
+    }
+
+    private void ToggleNotificaciones()
+    {
+        mostrarNotificaciones = !mostrarNotificaciones;
+    }
+
+    private async Task CargarDatosDashboard()
+    {
+        try
+        {
+            isLoading = true;
+            var token = await AuthService.ObtenerTokenAsync();
+
+            System.Diagnostics.Debug.WriteLine($"[DASHBOARD] Token obtenido: " + (!string.IsNullOrEmpty(token) ? "EXISTE" : "VACÍO"));
+
+            // 1. Cargar Visitas
+            try
+            {
+                var requestVisitas = new HttpRequestMessage(HttpMethod.Get, "api/dashboard/visitas-hoy");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    requestVisitas.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                }
+                var respVisitas = await Http.SendAsync(requestVisitas);
+                visitasHoy = respVisitas.IsSuccessStatusCode ? await respVisitas.Content.ReadFromJsonAsync<List<VisitaDto>>(jsonOptions) ?? new() : new();
+            }
+            catch
+            {
+                visitasHoy = new();
+            }
+
+            // 2. Cargar Proyectos
+            try
+            {
+                var requestProyectos = new HttpRequestMessage(HttpMethod.Get, "api/dashboard/proyectos-activos");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    requestProyectos.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                }
+                var respProyectos = await Http.SendAsync(requestProyectos);
+                proyectosActivos = respProyectos.IsSuccessStatusCode ? await respProyectos.Content.ReadFromJsonAsync<List<ProyectoActivoDto>>(jsonOptions) ?? new() : new();
+            }
+            catch
+            {
+                proyectosActivos = new();
+            }
+
+            // 3. Cargar Notificaciones (Consumiendo api/notificaciones con depuración detallada)
+            try
+            {
+                var requestNotis = new HttpRequestMessage(HttpMethod.Get, "api/notificaciones");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    requestNotis.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                }
+
+                var respNotis = await Http.SendAsync(requestNotis);
+                System.Diagnostics.Debug.WriteLine($"[DASHBOARD] Status notificaciones: {respNotis.StatusCode}");
+
+                if (respNotis.IsSuccessStatusCode)
+                {
+                    var jsonContent = await respNotis.Content.ReadAsStringAsync();
+                    System.Diagnostics.Debug.WriteLine($"[DASHBOARD] JSON notificaciones recibido: {jsonContent}");
+
+                    notificaciones = JsonSerializer.Deserialize<List<NotificacionDto>>(jsonContent, jsonOptions) ?? new();
+                }
+                else
+                {
+                    var errorText = await respNotis.Content.ReadAsStringAsync();
+                    System.Diagnostics.Debug.WriteLine($"[DASHBOARD] Error API notificaciones ({respNotis.StatusCode}): {errorText}");
+                    notificaciones = new();
+                }
+            }
+            catch (Exception exNoti)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DASHBOARD] Excepción al cargar notificaciones: {exNoti.Message}");
+                notificaciones = new();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error general al cargar datos: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task MarcarLeida(NotificacionDto noti)
+    {
+        if (noti.Leido) return;
+
+        try
+        {
+            var token = await AuthService.ObtenerTokenAsync();
+            var request = new HttpRequestMessage(HttpMethod.Patch, $"api/notificaciones/{noti.NotificacionId}/leer");
+            if (!string.IsNullOrEmpty(token))
+            {
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+
+            var response = await Http.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                noti.Leido = true;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error al marcar leída: {ex.Message}");
+        }
+    }
+
+    private async Task CerrarSesion()
+    {
+        await AuthService.LogoutAsync();
+        Snackbar.Add("Sesión cerrada correctamente", Severity.Info);
+        Navigation.NavigateTo("/");
+    }
+
+    private void VerDetalleVisita(int id)
+    {
+        Navigation.NavigateTo($"/visita-detalle/{id}");
+    }
+
+    public class NotificacionDto
+    {
+        public int NotificacionId { get; set; }
+        public int UsuarioId { get; set; }
+        public string Titulo { get; set; } = string.Empty;
+        public string Mensaje { get; set; } = string.Empty;
+        public bool Leido { get; set; }
+        public DateTime FechaHora { get; set; }
+    }
+
+    public class VisitaDto
+    {
+        public int Id { get; set; }
+        public string Titulo { get; set; } = string.Empty;
+        public string Horario { get; set; } = string.Empty;
+    }
+
+    public class ProyectoActivoDto
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public string Estado { get; set; } = string.Empty;
+        public int PorcentajeProgreso { get; set; }
+        public string FechaEntrega { get; set; } = string.Empty;
+        public int ComentariosCount { get; set; }
+    }
+}

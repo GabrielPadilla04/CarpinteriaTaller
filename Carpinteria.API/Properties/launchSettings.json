@@ -1,0 +1,31 @@
+﻿{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5002",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ConnectionStrings__DefaultConnection": "Server=127.0.0.1;Port=3307;Database=baseapp_carpinteria;Uid=root;Pwd=admin1234;",
+        "Jwt__Key": "ClaveSecretaSuperSeguraTP5_2026!ConSuficienteLongitud12345",
+        "Jwt__Issuer": "TP5Api",
+        "Jwt__Audience": "TP5Clients"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "https://localhost:7235;http://localhost:5002",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ConnectionStrings__DefaultConnection": "Server=127.0.0.1;Port=3307;Database=baseapp_carpinteria;Uid=root;Pwd=admin1234;",
+        "Jwt__Key": "ClaveSecretaSuperSeguraTP5_2026!ConSuficienteLongitud12345",
+        "Jwt__Issuer": "TP5Api",
+        "Jwt__Audience": "TP5Clients"
+      }
+    }
+  }
+}

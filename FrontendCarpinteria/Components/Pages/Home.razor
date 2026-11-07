@@ -1,0 +1,538 @@
+﻿@page "/"
+@using FrontendCarpinteria.Models
+@using FrontendCarpinteria.Services
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<div class="onboarding-container">
+    <!-- Ilustración superior con tarjetas inclinadas en 3D -->
+    <div class="mockups-wrapper">
+        <!-- Tarjeta de atrás (Proyectos Entregados / Gráfico) -->
+        <div class="mock-card card-back shadow-sm">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <div class="text-uppercase text-muted fw-bold" style="font-size: 10px; letter-spacing: 0.5px;">Proyectos Entregados</div>
+                    <div class="text-secondary" style="font-size: 11px;">Rendimiento mensual del taller</div>
+                </div>
+                <span class="fw-bold text-dark" style="font-size: 13px;">18 muebles</span>
+            </div>
+            <!-- Simulación visual del gráfico de líneas -->
+            <div class="chart-mockup">
+                <div class="chart-line"></div>
+                <div class="chart-point p1"></div>
+                <div class="chart-point p2"></div>
+                <div class="chart-point p3"></div>
+                <div class="chart-point p4 active"></div>
+            </div>
+            <div class="d-flex justify-content-between text-muted mt-1" style="font-size: 9px;">
+                <span>May</span><span>Jun</span><span>Jul</span><span class="text-dark fw-bold">Aug</span><span>Sept</span>
+            </div>
+        </div>
+
+        <!-- Tarjeta de adelante (Tareas de hoy) -->
+        <div class="mock-card card-front shadow">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-bold text-dark" style="font-size: 12px;">Tareas de hoy</span>
+                <span class="badge bg-light text-secondary border px-1 rounded-pill" style="font-size: 9px;">1</span>
+            </div>
+            <div class="text-muted mb-2" style="font-size: 10px;">Control de estado de tus obras</div>
+
+            <div class="p-2 bg-light rounded-3 border-start border-3 border-dark mb-2">
+                <div class="fw-bold text-dark" style="font-size: 11px;">Amoblamiento de Cocina - Cliente Pérez</div>
+            </div>
+
+            <div class="d-flex gap-1">
+                <span class="badge bg-light text-muted border px-2 py-1 rounded-pill" style="font-size: 9px;">⚪ En Fabricación</span>
+                <span class="badge bg-danger text-white px-2 py-1 rounded-pill" style="font-size: 9px;">🔥 Urgente</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección inferior: Textos y Botones -->
+    <div class="content-bottom">
+        <div class="hero-text text-center mb-4">
+            <h2>Diseñá, medí y controlá tus obras desde un solo lugar</h2>
+            <p>Optimizá tus tiempos en la obra. Todo tu catálogo, clientes y planos en la palma de tu mano.</p>
+        </div>
+
+        <div class="action-buttons d-flex flex-column gap-2 w-100 pb-3">
+            <MudButton Variant="Variant.Filled"
+                       Class="btn-dark-custom"
+                       FullWidth="true"
+                       OnClick="AbrirLogin">
+                Iniciar sesión
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       Class="btn-outline-custom"
+                       FullWidth="true"
+                       OnClick="IrARegistro">
+                Registrarse
+            </MudButton>
+        </div>
+    </div>
+
+    <!-- Panel Flotante / Modal de Login (BottomSheet estilo Figma) -->
+    @if (isLoginOpen)
+    {
+        <div class="login-overlay" @onclick="CerrarLogin">
+            <div class="login-card" @onclick:stopPropagation="true">
+                <div class="login-header">
+                    <h3>Iniciar sesión</h3>
+                    <span>Iniciar sesión en mi cuenta</span>
+                </div>
+
+                <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label class="input-label">Email</label>
+                        <MudTextField @bind-Value="loginModel.Email"
+                                      Placeholder="Usuario@gmail.com"
+                                      Variant="Variant.Outlined"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Email"
+                                      Class="custom-input rounded-lg" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="input-label">Contraseña</label>
+                        <MudTextField @bind-Value="loginModel.Password"
+                                      Placeholder="Contraseña"
+                                      Variant="Variant.Outlined"
+                                      InputType="InputType.Password"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Lock"
+                                      Class="custom-input rounded-lg" />
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <MudCheckBox @bind-Value="rememberMe" Label="Recordarme" Color="Color.Dark" Dense="true" />
+                        <!-- Enlace conectado a la función IrARecuperarPassword -->
+                        <MudLink Typo="Typo.caption" Class="link-custom text-decoration-none" OnClick="IrARecuperarPassword">Recuperar contraseña</MudLink>
+                    </div>
+
+                    <MudButton Variant="Variant.Filled"
+                               ButtonType="ButtonType.Submit"
+                               Class="btn-dark-custom mb-3"
+                               FullWidth="true"
+                               Disabled="isLoading">
+                        @if (isLoading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="text-white" />
+                        }
+                        else
+                        {
+                            <span>Iniciar sesión</span>
+                        }
+                    </MudButton>
+                </EditForm>
+
+                <div class="text-center register-footer">
+                    <span>¿No tiene una cuenta? </span>
+                    <MudLink Typo="Typo.body2" OnClick="IrARegistro" Class="link-custom fw-bold text-decoration-none">Regístrate aquí</MudLink>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+
+<style>
+    /* =========================================
+                        CONTENEDOR PRINCIPAL
+                    ========================================= */
+
+    .onboarding-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        min-height: 100vh;
+        background: linear-gradient( 180deg, #2c323f 0%, #3b4252 25%, #7e8697 50%, #e2e5eb 75%, #ffffff 100% );
+        padding: 24px 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-sizing: border-box;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+
+    /* =========================================
+                        CONTENEDOR DE TARJETAS 3D
+                    ========================================= */
+
+    .mockups-wrapper {
+        position: relative;
+        width: 100%;
+        height: 340px;
+        margin-top: 25px;
+        perspective: 1000px;
+        transform-style: preserve-3d;
+    }
+
+
+    /* =========================================
+                        TARJETAS GENERALES
+                    ========================================= */
+
+    .mock-card {
+        background: #ffffff;
+        border-radius: 15px;
+        padding: 16px;
+        position: absolute;
+        transform-style: preserve-3d;
+        transform-origin: center center;
+        box-shadow: 0 20px 35px rgba(0, 0, 0, 0.18), 0 5px 12px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+
+    /* =========================================
+                        TARJETA TRASERA (Arriba a la izquierda)
+                    ========================================= */
+    .card-front {
+        width: 74%;
+        top: 30px;
+        left: 8%;
+        z-index: 2; /* Queda detrás */
+        transform: rotate(-15deg) skewX(20deg);
+        box-shadow: 10px 15px 30px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    /* =========================================
+                        TARJETA FRONTAL (Abajo a la derecha)
+                    ========================================= */
+    .card-back {
+        width: 74%;
+        top: 150px;
+        left: 22%;
+        z-index: 4;
+        transform: rotate(-15deg) skewX(20deg);
+        box-shadow: 15px 25px 35px rgba(0, 0, 0, 0.15);
+        border: 1px solid rgba(0, 0, 0, 0.04);
+    }
+
+    /* =========================================
+                        GRÁFICO
+                    ========================================= */
+
+    .chart-mockup {
+        position: relative;
+        height: 85px;
+        margin-top: 15px;
+        overflow: hidden;
+        background: linear-gradient( 180deg, rgba(30, 32, 40, 0.02), rgba(30, 32, 40, 0.12) );
+        border-bottom: 1px solid #d1d5db;
+    }
+
+    .chart-line {
+        position: absolute;
+        inset: 15px 0 0 0;
+        background: linear-gradient( 180deg, rgba(30, 32, 40, 0.45), rgba(30, 32, 40, 0.03) );
+        clip-path: polygon( 0 75%, 15% 60%, 35% 55%, 55% 40%, 70% 5%, 85% 30%, 100% 15%, 100% 100%, 0 100% );
+        border-top: 2px solid #1e2028;
+    }
+
+
+    /* =========================================
+                        PUNTOS DEL GRÁFICO
+                    ========================================= */
+
+    .chart-point {
+        position: absolute;
+        width: 6px;
+        height: 6px;
+        background: #ffffff;
+        border: 2px solid #1e2028;
+        border-radius: 50%;
+        z-index: 2;
+    }
+
+        .chart-point.p1 {
+            bottom: 30%;
+            left: 15%;
+        }
+
+        .chart-point.p2 {
+            bottom: 45%;
+            left: 35%;
+        }
+
+        .chart-point.p3 {
+            bottom: 50%;
+            left: 55%;
+        }
+
+        .chart-point.p4 {
+            bottom: 80%;
+            left: 75%;
+            background: #1e2028;
+        }
+
+
+    /* =========================================
+                        CONTENIDO INFERIOR
+                    ========================================= */
+
+    .content-bottom {
+        color: #1f2937;
+        padding-bottom: 10px;
+        z-index: 5;
+    }
+
+    .hero-text h2 {
+        font-size: 24px;
+        font-weight: 800;
+        color: #111827;
+        margin-bottom: 10px;
+        line-height: 1.2;
+    }
+
+    .hero-text p {
+        color: #4b5563;
+        font-size: 13px;
+        line-height: 1.4;
+        padding: 0 5px;
+    }
+
+
+    /* =========================================
+                        BOTONES Y ENLACES UNIFICADOS
+                    ========================================= */
+
+    .btn-dark-custom {
+        background-color: #181c24 !important;
+        color: white !important;
+        border-radius: 28px !important;
+        padding: 14px 20px !important;
+        text-transform: none !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 14px rgba(24, 28, 36, 0.25) !important;
+    }
+
+    .btn-outline-custom {
+        border: 1.5px solid #181c24 !important;
+        color: #181c24 !important;
+        border-radius: 28px !important;
+        padding: 14px 20px !important;
+        text-transform: none !important;
+        font-weight: 600 !important;
+        background: transparent !important;
+    }
+
+    /* Clase unificada para los enlaces de texto */
+    .link-custom {
+        color: #181c24 !important;
+        cursor: pointer;
+    }
+
+        .link-custom:hover {
+            color: #3b4252 !important;
+            text-decoration: underline !important;
+        }
+
+
+    /* =========================================
+                        MODAL LOGIN
+                    ========================================= */
+
+    .login-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: flex-end;
+        z-index: 1000;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .login-card {
+        background: #ffffff;
+        color: #1f2937;
+        width: 100%;
+        border-top-left-radius: 28px;
+        border-top-right-radius: 28px;
+        padding: 28px 24px;
+        box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.3);
+        animation: slideUp 0.3s ease;
+    }
+
+    .login-header {
+        text-align: center;
+        margin-bottom: 24px;
+    }
+
+        .login-header h3 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .login-header span {
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+    .input-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 6px;
+        display: block;
+    }
+
+    .register-footer {
+        text-align: center;
+        font-size: 13px;
+        color: #6b7280;
+        margin-top: 16px;
+    }
+
+
+    /* =========================================
+                        ANIMACIONES
+                    ========================================= */
+
+    @@keyframes slideUp {
+        from {
+            transform: translateY(100%);
+        }
+
+        to {
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+
+    /* =========================================
+                        RESPONSIVE - CELULARES
+                    ========================================= */
+
+    @@media (max-width: 480px) {
+
+        .onboarding-container {
+            padding: 20px 16px;
+        }
+
+        .mockups-wrapper {
+            height: 310px;
+            perspective: 850px;
+            margin-left: -5px;
+            width: calc(100% + 10px);
+        }
+
+        .card-front {
+            width: 88%;
+            top: 35px;
+            left: 0;
+        }
+
+        .card-back {
+            width: 88%;
+            top: 145px;
+            right: 0;
+        }
+
+        .hero-text h2 {
+            font-size: 22px;
+        }
+    }
+
+
+    /* =========================================
+                        RESPONSIVE - TABLETS Y PC
+                    ========================================= */
+
+    @@media (min-width: 768px) {
+
+        .onboarding-container {
+            align-items: center;
+        }
+
+        .mockups-wrapper {
+            width: 550px;
+            height: 380px;
+        }
+
+        .content-bottom {
+            width: 500px;
+        }
+    }
+
+</style>
+
+
+@code {
+    private bool isLoginOpen = false;
+    private bool rememberMe = false;
+    private bool isLoading = false;
+    private LoginRequest loginModel = new();
+
+    private void AbrirLogin()
+    {
+        isLoginOpen = true;
+    }
+
+    private void CerrarLogin()
+    {
+        isLoginOpen = false;
+    }
+
+    private void IrARegistro()
+    {
+        isLoginOpen = false;
+        Navigation.NavigateTo("/register");
+    }
+
+    private void IrARecuperarPassword()
+    {
+        isLoginOpen = false;
+        Navigation.NavigateTo("/forgot-password");
+    }
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        try
+        {
+            var success = await AuthService.LoginAsync(loginModel.Email, loginModel.Password);
+            if (success)
+            {
+                Snackbar.Add("¡Inicio de sesión exitoso!", Severity.Success);
+                isLoginOpen = false; // Cerramos el modal de login
+                Navigation.NavigateTo("/dashboard"); // Redirigimos a la pantalla principal
+            }
+            else
+            {
+                Snackbar.Add("Credenciales incorrectas o error de conexión.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
