@@ -6,6 +6,7 @@ using TP5_Servicios_API_REST.DTOs.Proyecto.Response;
 using TP5_Servicios_API_REST.Excepciones;
 using TP5_Servicios_API_REST.Models;
 using TP5_Servicios_API_REST.Services;
+using Carpinteria.API.DTOs.Proyecto.Request;
 
 namespace TP5_Servicios_API_REST.Controllers
 {

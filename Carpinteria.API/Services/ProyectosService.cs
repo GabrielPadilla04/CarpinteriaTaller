@@ -5,6 +5,7 @@ using TP5_Servicios_API_REST.DTOs.Proyecto.Request;
 using TP5_Servicios_API_REST.DTOs.Proyecto.Response;
 using TP5_Servicios_API_REST.Excepciones;
 using TP5_Servicios_API_REST.Models;
+using Carpinteria.API.DTOs.Proyecto.Request;
 
 namespace TP5_Servicios_API_REST.Services
 {
@@ -49,7 +50,7 @@ namespace TP5_Servicios_API_REST.Services
                     .Include(p => p.Cliente)
                     .Include(p => p.Usuario)
                     .Include(p => p.EstadoProyecto)
-                    .Include(p => p.EstadoTaller) // Incluimos la nueva relación
+                    .Include(p => p.EstadoTaller) // Incluimos la relación
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .Select(p => new ProyectoListadoResponse(
@@ -76,7 +77,7 @@ namespace TP5_Servicios_API_REST.Services
                     .Include(p => p.Cliente)
                     .Include(p => p.Usuario)
                     .Include(p => p.EstadoProyecto)
-                    .Include(p => p.EstadoTaller) // Incluimos la nueva relación
+                    .Include(p => p.EstadoTaller)
                     .FirstOrDefaultAsync(p => p.ProyectoId == id);
 
                 if (proyecto == null)
@@ -126,7 +127,6 @@ namespace TP5_Servicios_API_REST.Services
                     throw new RecursoNoExisteException($"El estado de proyecto con ID {dto.EstadoId} no existe.");
                 }
 
-                // Buscamos por defecto el estado de taller "En espera" (o puedes ajustar según tu lógica de negocio)
                 var estadoTallerEnEspera = await _context.EstadosTaller
                     .FirstOrDefaultAsync(e => e.NombreEstadoTaller == "En espera");
 
@@ -138,7 +138,7 @@ namespace TP5_Servicios_API_REST.Services
                     UsuarioId = dto.UsuarioId,
                     NombreProyecto = dto.NombreProyecto,
                     EstadoId = dto.EstadoId,
-                    EstadoTallerId = estadoTallerIdDefault, // Asignamos el ID correspondiente
+                    EstadoTallerId = estadoTallerIdDefault,
                     Observaciones = dto.Observaciones,
                     FechaCreacion = DateTime.Now
                 };
@@ -160,7 +160,6 @@ namespace TP5_Servicios_API_REST.Services
                 await _context.Entry(nuevoProyecto).Reference(p => p.EstadoProyecto!).LoadAsync();
                 await _context.Entry(nuevoProyecto).Reference(p => p.EstadoTaller!).LoadAsync();
 
-                // Registrar Bitácora y Notificación
                 int usuarioIdActual = ObtenerUsuarioIdActual();
 
                 await _bitacoraService.RegistrarAccionAsync(
@@ -229,15 +228,14 @@ namespace TP5_Servicios_API_REST.Services
                 proyecto.ClienteId = dto.ClienteId;
                 proyecto.UsuarioId = dto.UsuarioId;
 
-                // Si en tu DTO de actualización recibes el ID del estado de taller, lo asignas directamente:
-                // proyecto.EstadoTallerId = dto.EstadoTallerId; 
+                // CORREGIDO: Se asigna explícitamente el EstadoTallerId enviado desde el request
+                proyecto.EstadoTallerId = dto.EstadoTallerId;
 
                 proyecto.Observaciones = dto.Observaciones;
 
                 _context.Proyectos.Update(proyecto);
                 await _context.SaveChangesAsync();
 
-                // Registrar Bitácora y Notificación
                 int usuarioIdActual = ObtenerUsuarioIdActual();
 
                 await _bitacoraService.RegistrarAccionAsync(
@@ -282,7 +280,6 @@ namespace TP5_Servicios_API_REST.Services
                 _context.Proyectos.Remove(proyecto);
                 await _context.SaveChangesAsync();
 
-                // Registrar Bitácora y Notificación
                 int usuarioIdActual = ObtenerUsuarioIdActual();
 
                 await _bitacoraService.RegistrarAccionAsync(

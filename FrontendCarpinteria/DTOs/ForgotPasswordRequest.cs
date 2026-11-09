@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace FrontendCarpinteria.Models.DTOs
+namespace FrontendCarpinteria.DTOs
 {
     public class ForgotPasswordRequest
     {

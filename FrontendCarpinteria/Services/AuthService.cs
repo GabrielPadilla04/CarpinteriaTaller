@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using FrontendCarpinteria.Models.DTOs;
+using FrontendCarpinteria.DTOs;
 using FrontendCarpinteria.Models;
 using System.Net.Http.Json;
 using Microsoft.Maui.Storage;

@@ -8,7 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using TP5_Servicios_API_REST.Data;
 using TP5_Servicios_API_REST.DTOs.Auth;
 using TP5_Servicios_API_REST.Models;
-using TP5_Servicios_API_REST.Services; // Namespace del EmailService
+using TP5_Servicios_API_REST.Services;
 
 namespace TP5_Servicios_API_REST.Controllers
 {
@@ -28,14 +28,18 @@ namespace TP5_Servicios_API_REST.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register(RegisterDto dto)
+        public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
+            // 1. Validar que el DTO cumpla con las reglas (campos requeridos, email válido, etc.)
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             // Validar si ya existe el email
             if (await _context.Usuarios.AnyAsync(u => u.Email.ToLower() == dto.Email.ToLower()))
                 return BadRequest(new { mensaje = "El correo electrónico ya está registrado." });
 
-            // Forzamos el rol por defecto (2 = Carpintero/Diseñador) por seguridad, 
-            // evitando que un usuario externo elija ser Administrador libremente.
             int rolIdAsignado = 2;
 
             var usuario = new Usuario
@@ -54,9 +58,14 @@ namespace TP5_Servicios_API_REST.Controllers
         }
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login(LoginDto dto)
+        public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
-            // Traemos el usuario incluyendo la tabla Roles para verificar su rol en el token
+            // 2. Validar que el DTO de login no llegue con campos vacíos
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             var usuario = await _context.Usuarios
                 .Include(u => u.Roles)
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == dto.Email.ToLower());
@@ -71,26 +80,28 @@ namespace TP5_Servicios_API_REST.Controllers
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             var usuario = await _context.Usuarios
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == dto.Email.ToLower());
 
             if (usuario == null)
             {
-                // Por seguridad, retornamos Ok para no revelar si el correo existe o no en la BD
                 return Ok(new { mensaje = "Si el correo existe, se ha generado un código de recuperación." });
             }
 
-            // Generar código OTP aleatorio de 6 dígitos
             var random = new Random();
             string codigoOtp = random.Next(100000, 999999).ToString();
 
             usuario.CodigoRecuperacion = codigoOtp;
-            usuario.ExpiracionCodigo = DateTime.UtcNow.AddMinutes(10); // Expira en 10 minutos
+            usuario.ExpiracionCodigo = DateTime.UtcNow.AddMinutes(10);
 
             _context.Usuarios.Update(usuario);
             await _context.SaveChangesAsync();
 
-            // Envío real del correo utilizando MailKit
             try
             {
                 await _emailService.EnviarCorreoOtpAsync(usuario.Email, codigoOtp);
@@ -106,6 +117,11 @@ namespace TP5_Servicios_API_REST.Controllers
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             var usuario = await _context.Usuarios
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == dto.Email.ToLower());
 
@@ -114,7 +130,6 @@ namespace TP5_Servicios_API_REST.Controllers
                 return BadRequest(new { mensaje = "Solicitud inválida." });
             }
 
-            // Validar que el código coincida y que no esté vencido
             if (string.IsNullOrEmpty(usuario.CodigoRecuperacion) ||
                 usuario.CodigoRecuperacion != dto.CodigoOtp ||
                 usuario.ExpiracionCodigo < DateTime.UtcNow)
@@ -122,7 +137,6 @@ namespace TP5_Servicios_API_REST.Controllers
                 return BadRequest(new { mensaje = "El código es incorrecto o ha expirado." });
             }
 
-            // Actualizar la contraseña con hash y limpiar los campos de recuperación
             usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NuevaPassword);
             usuario.CodigoRecuperacion = null;
             usuario.ExpiracionCodigo = null;

@@ -1,0 +1,413 @@
+﻿@page "/relevamiento"
+@page "/relevamiento-tecnico"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject AuthService AuthService
+@using FrontendCarpinteria.DTOs.Ambiente.Response
+@using FrontendCarpinteria.DTOs.Medicion.Request
+@using FrontendCarpinteria.DTOs.Material.Response
+@using FrontendCarpinteria.DTOs.ProyectoMaterial.Request
+@using FrontendCarpinteria.Services
+
+<div class="relevamiento-container">
+    <!-- Encabezado Oscuro -->
+    <div class="header-section">
+        <div class="d-flex align-center justify-space-between mb-1">
+            <div class="d-flex align-center">
+                <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                               OnClick="VolverAlDashboard"
+                               Class="pa-0 mr-3 text-white" />
+                <MudText Typo="Typo.h5" Class="fw-bold text-white">Relevamiento Técnico</MudText>
+            </div>
+        </div>
+        <MudText Typo="Typo.caption" Class="text-muted-header mb-3 d-block">
+            Mediciones de Módulos y Obra
+        </MudText>
+    </div>
+
+    <!-- Formulario Principal de Mediciones -->
+    <div class="form-section px-4 mt-3">
+        <MudPaper Elevation="0" Class="pa-4 rounded-xl card-formulario">
+            <MudText Typo="Typo.subtitle1" Class="fw-bold text-dark mb-3">Mediciones de Módulo</MudText>
+
+            <EditForm Model="@modelo" OnValidSubmit="GuardarMedicion">
+                <DataAnnotationsValidator />
+
+                <!-- Selección de Ambiente -->
+                <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Ambiente</MudText>
+                <MudSelect T="int" @bind-Value="modelo.AmbienteId" Placeholder="Seleccione ambiente..." Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3">
+                    @if (listaAmbientes != null)
+                    {
+                        @foreach (var amb in listaAmbientes)
+                        {
+                            <MudSelectItem Value="@amb.AmbienteId">@amb.NombreAmbiente</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+
+                <!-- Etiqueta del Módulo -->
+                <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Etiqueta del Módulo</MudText>
+                <MudTextField @bind-Value="modelo.EtiquetaModulo" Placeholder="Ej. Bajo mesada, Alacena, Vestidor" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+
+                <!-- Medidas en Milímetros (Alto, Ancho, Profundidad) -->
+                <div class="d-flex gap-2">
+                    <div class="flex-1">
+                        <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Alto (mm)</MudText>
+                        <MudTextField @bind-Value="modelo.AltoMm" Placeholder="0" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" InputType="InputType.Number" />
+                    </div>
+                    <div class="flex-1">
+                        <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Ancho (mm)</MudText>
+                        <MudTextField @bind-Value="modelo.AnchoMm" Placeholder="0" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" InputType="InputType.Number" />
+                    </div>
+                    <div class="flex-1">
+                        <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Profundidad (mm)</MudText>
+                        <MudTextField @bind-Value="modelo.ProfundidadMm" Placeholder="0" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" InputType="InputType.Number" />
+                    </div>
+                </div>
+
+                <!-- Ubicación del Módulo -->
+                <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Ubicación</MudText>
+                <MudTextField @bind-Value="modelo.UbicacionModulo" Placeholder="Ej. Pared Norte, Esquina" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+
+                <!-- Notas / Observaciones -->
+                <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Notas / Observaciones</MudText>
+                <MudTextField @bind-Value="modelo.NotesModulo" Placeholder="Detalles técnicos adicionales..." Variant="Variant.Outlined" Lines="2" Margin="Margin.Dense" Class="mb-4" />
+
+                <!-- Sección con Buscador (Autocomplete) para Materiales de la Obra -->
+                <MudDivider Class="my-4" />
+                <MudText Typo="Typo.subtitle1" Class="fw-bold text-dark mb-2">Materiales Requeridos para la Obra</MudText>
+
+                <div class="d-flex gap-2 mb-3 align-center">
+                    <MudAutocomplete T="MaterialResponse"
+                                     @ValueOfSelectedMaterial
+                                     SearchFunc="BuscarMateriales"
+                                     ToStringFunc="@(m => m != null ? $"{m.NombreColorDiseno} ({m.MarcaProveedor})" : string.Empty)"
+                                     Placeholder="Buscar material..."
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     Class="flex-grow-1"
+                                     ResetValueOnEmptyText="true"
+                                     CoerceText="true" />
+
+                    <MudTextField @bind-Value="cantidadMaterial" Placeholder="Cant." Variant="Variant.Outlined" Margin="Margin.Dense" Style="width: 80px;" InputType="InputType.Number" />
+
+                    <MudButton Variant="Variant.Outlined" Color="Color.Dark" OnClick="AsignarMaterialAObra" Class="py-2">AGREGAR</MudButton>
+                </div>
+
+                <!-- Listado visual de materiales asignados temporalmente -->
+                @if (materialesObraTemp.Any())
+                {
+                    <div class="mb-4">
+                        @foreach (var item in materialesObraTemp)
+                        {
+                            var infoMat = listaMaterialesCatalogo.FirstOrDefault(m => m.MaterialId == item.MaterialId);
+                            <div class="d-flex justify-space-between align-center pa-2 mb-1 bg-white rounded border">
+                                <MudText Typo="Typo.body2">@(infoMat?.NombreColorDiseno ?? "Material") - Cant: @item.Cantidad</MudText>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => materialesObraTemp.Remove(item)" />
+                            </div>
+                        }
+                    </div>
+                }
+
+                <!-- Botón Registrar -->
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" FullWidth="true" Class="btn-registrar py-3 mt-2">
+                    Registrar Medición
+                </MudButton>
+            </EditForm>
+        </MudPaper>
+    </div>
+
+    <!-- Barra de Navegación Inferior Centrada -->
+    <div class="bottom-nav">
+        <!-- 1. Dashboard -->
+        <div class="nav-item" @onclick="IrAHome">
+            <MudIcon Icon="@Icons.Material.Filled.Home" Size="Size.Medium" />
+        </div>
+        <!-- 2. Clientes -->
+        <div class="nav-item" @onclick="IrAClientes">
+            <MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" Size="Size.Medium" />
+        </div>
+        <!-- 3. Proyectos -->
+        <div class="nav-item" @onclick="IrAProyectos">
+            <MudIcon Icon="@Icons.Material.Outlined.Assignment" Size="Size.Medium" />
+        </div>
+        <!-- 4. Relevamiento Técnico (Activo aquí) -->
+        <div class="nav-item active" @onclick="IrARelevamiento">
+            <MudIcon Icon="@Icons.Material.Filled.Receipt" Size="Size.Medium" />
+            <div class="nav-indicator"></div>
+        </div>
+        <!-- 5. Catálogo -->
+        <div class="nav-item" @onclick="IrACatalogo">
+            <MudIcon Icon="@Icons.Material.Outlined.Layers" Size="Size.Medium" />
+        </div>
+    </div>
+</div>
+
+<style>
+    .relevamiento-container {
+        max-width: 480px;
+        margin: 0 auto;
+        background-color: #f4f6f9;
+        min-height: 100vh;
+        padding-bottom: 90px;
+        box-sizing: border-box;
+        font-family: inherit;
+        position: relative;
+    }
+
+    .header-section {
+        background-color: #181c24;
+        padding: 24px 16px 20px 16px;
+        border-bottom-left-radius: 24px;
+        border-bottom-right-radius: 24px;
+    }
+
+    .text-muted-header {
+        color: #9ca3af;
+        font-size: 13px;
+    }
+
+    .card-formulario {
+        background-color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+        border: 1px solid #e5e7eb;
+    }
+
+    .text-dark {
+        color: #111827 !important;
+    }
+
+    .text-muted-custom {
+        color: #6b7280 !important;
+        font-size: 11px;
+    }
+
+    .btn-registrar {
+        background-color: #181c24 !important;
+        color: white !important;
+        border-radius: 12px !important;
+        text-transform: none !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    /* Barra inferior fija y centrada */
+    .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: 0 auto;
+        width: 100%;
+        max-width: 480px;
+        height: 60px;
+        background: #181c24;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        z-index: 1000;
+        box-sizing: border-box;
+    }
+
+    .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        cursor: pointer;
+        position: relative;
+        padding: 8px;
+        flex: 1;
+    }
+
+        .nav-item.active {
+            color: #ffffff;
+        }
+
+    .nav-indicator {
+        position: absolute;
+        bottom: 4px;
+        width: 16px;
+        height: 2px;
+        background-color: white;
+        border-radius: 2px;
+    }
+</style>
+
+@code {
+    private List<AmbienteResponse> listaAmbientes = new();
+    private List<MaterialResponse> listaMaterialesCatalogo = new();
+    private List<AsignarMaterialProyectoRequest> materialesObraTemp = new();
+    private CrearMedicionRequest modelo = new();
+
+    private MaterialResponse? materialSeleccionado;
+    private int cantidadMaterial = 1;
+
+    // Propiedad vinculada al MudAutocomplete
+    private MaterialResponse? ValueOfSelectedMaterial
+    {
+        get => materialSeleccionado;
+        set => materialSeleccionado = value;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAmbientes();
+        await CargarMaterialesCatalogo();
+    }
+
+    private async Task CargarAmbientes()
+    {
+        try
+        {
+            var token = await AuthService.ObtenerTokenAsync();
+            var request = new HttpRequestMessage(HttpMethod.Get, "api/ambientes?page=1&pageSize=100");
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+
+            var response = await Http.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                listaAmbientes = await response.Content.ReadFromJsonAsync<List<AmbienteResponse>>() ?? new();
+            }
+            else
+            {
+                listaAmbientes = new();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar ambientes: {ex.Message}");
+            listaAmbientes = new();
+        }
+    }
+
+    private async Task CargarMaterialesCatalogo()
+    {
+        try
+        {
+            var token = await AuthService.ObtenerTokenAsync();
+            var request = new HttpRequestMessage(HttpMethod.Get, "api/materiales");
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+
+            var response = await Http.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                listaMaterialesCatalogo = await response.Content.ReadFromJsonAsync<List<MaterialResponse>>() ?? new();
+            }
+            else
+            {
+                listaMaterialesCatalogo = new();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar materiales: {ex.Message}");
+            listaMaterialesCatalogo = new();
+        }
+    }
+
+    // Método de búsqueda para el MudAutocomplete que filtra en tiempo real
+    private Task<IEnumerable<MaterialResponse>> BuscarMateriales(string value, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return Task.FromResult(listaMaterialesCatalogo.AsEnumerable());
+        }
+
+        var resultados = listaMaterialesCatalogo.Where(m =>
+            (!string.IsNullOrEmpty(m.NombreColorDiseno) && m.NombreColorDiseno.Contains(value, StringComparison.InvariantCultureIgnoreCase)) ||
+            (!string.IsNullOrEmpty(m.MarcaProveedor) && m.MarcaProveedor.Contains(value, StringComparison.InvariantCultureIgnoreCase))
+        );
+
+        return Task.FromResult(resultados);
+    }
+
+    private void AsignarMaterialAObra()
+    {
+        if (materialSeleccionado != null && cantidadMaterial > 0)
+        {
+            int proyectoIdInferido = 1; // Ajustar según corresponda al proyecto del ambiente
+
+            materialesObraTemp.Add(new AsignarMaterialProyectoRequest
+            {
+                ProyectoId = proyectoIdInferido,
+                MaterialId = materialSeleccionado.MaterialId,
+                Cantidad = cantidadMaterial
+            });
+
+            materialSeleccionado = null;
+            cantidadMaterial = 1;
+        }
+        else
+        {
+            Snackbar.Add("Seleccione un material válido y una cantidad mayor a 0.", Severity.Warning);
+        }
+    }
+
+    private async Task GuardarMedicion()
+    {
+        if (modelo.AmbienteId <= 0)
+        {
+            Snackbar.Add("Debe seleccionar un ambiente válido.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var token = await AuthService.ObtenerTokenAsync();
+
+            // 1. Guardar la Medición
+            var requestMedicion = new HttpRequestMessage(HttpMethod.Post, "api/mediciones");
+            if (!string.IsNullOrEmpty(token))
+            {
+                requestMedicion.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+            requestMedicion.Content = JsonContent.Create(modelo);
+
+            var responseMedicion = await Http.SendAsync(requestMedicion);
+            if (!responseMedicion.IsSuccessStatusCode)
+            {
+                var error = await responseMedicion.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error al registrar medición: {error}", Severity.Error);
+                return;
+            }
+
+            // 2. Guardar los materiales acumulados en la obra
+            foreach (var matReq in materialesObraTemp)
+            {
+                var requestMat = new HttpRequestMessage(HttpMethod.Post, "api/proyectosmateriales");
+                if (!string.IsNullOrEmpty(token))
+                {
+                    requestMat.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                }
+                requestMat.Content = JsonContent.Create(matReq);
+                await Http.SendAsync(requestMat);
+            }
+
+            Snackbar.Add("¡Medición y materiales registrados con éxito!", Severity.Success);
+            modelo = new();
+            materialesObraTemp.Clear();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error de conexión: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void VolverAlDashboard() => Navigation.NavigateTo("/dashboard");
+    private void IrAHome() => Navigation.NavigateTo("/dashboard");
+    private void IrAClientes() => Navigation.NavigateTo("/clientes");
+    private void IrAProyectos() => Navigation.NavigateTo("/proyectos");
+    private void IrARelevamiento() => Navigation.NavigateTo("/relevamiento");
+    private void IrACatalogo() => Navigation.NavigateTo("/catalogo");
+}

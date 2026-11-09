@@ -67,11 +67,10 @@ namespace TP5_Servicios_API_REST.Controllers
         }
 
         // ----------------------------------------------------
-        // ENDPOINTS DE USUARIO (Acceso propio o Admin)
+        // ENDPOINTS DE USUARIO (Acceso propio o General)
         // ----------------------------------------------------
 
         [HttpGet]
-        [Authorize(Roles = "Administrador")]
         public async Task<ActionResult<List<UsuarioDtoOutput>>> ObtenerTodos([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             try
