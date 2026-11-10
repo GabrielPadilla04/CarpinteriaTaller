@@ -20,12 +20,12 @@
                 <MudText Typo="Typo.h5" Class="fw-bold text-white">Estado del Taller</MudText>
             </div>
         </div>
-        <MudText Typo="Typo.caption" Class="text-muted-header mb-4 d-block">
+        <MudText Typo="Typo.caption" Class="text-muted-header mb-3 d-none d-md-block">
             Seguimiento de amoblamientos en producción
         </MudText>
 
-        <!-- Tarjeta Blanca de Resumen -->
-        <MudPaper Elevation="0" Class="pa-4 rounded-xl card-resumen">
+        <!-- Tarjeta Blanca de Resumen (Solo visible en Escritorio / Tablet) -->
+        <MudPaper Elevation="0" Class="pa-4 rounded-xl card-resumen d-none d-md-block mt-3">
             <MudText Typo="Typo.subtitle2" Class="fw-bold text-dark mb-1">Progreso de Estructuras</MudText>
             <MudText Typo="Typo.caption" Class="text-muted-custom mb-3 d-block">Progreso actual</MudText>
 
@@ -55,35 +55,37 @@
         </MudPaper>
     </div>
 
-    <!-- Filtro de Pestañas por Estados de Taller -->
-    <div class="px-4 mt-4">
-        <div class="tabs-container d-flex gap-2">
-            <div class="tab-pill @(filtroEstado == "En espera" ? "active" : "")" @onclick='() => FiltrarEstado("En espera")'>
-                En espera <span class="badge">@ContarPorEstado("En espera")</span>
-            </div>
-            <div class="tab-pill @(filtroEstado == "En proceso de cortes" ? "active" : "")" @onclick='() => FiltrarEstado("En proceso de cortes")'>
-                Cortes <span class="badge">@ContarPorEstado("En proceso de cortes")</span>
-            </div>
-            <div class="tab-pill @(filtroEstado == "En proceso de cantos / bordes" ? "active" : "")" @onclick='() => FiltrarEstado("En proceso de cantos / bordes")'>
-                Cantos <span class="badge">@ContarPorEstado("En proceso de cantos / bordes")</span>
-            </div>
-            <div class="tab-pill @(filtroEstado == "En proceso de armado / premontaje" ? "active" : "")" @onclick='() => FiltrarEstado("En proceso de armado / premontaje")'>
-                Armado <span class="badge">@ContarPorEstado("En proceso de armado / premontaje")</span>
-            </div>
-            <div class="tab-pill @(filtroEstado == "Listo para despacho / Retiro" ? "active" : "")" @onclick='() => FiltrarEstado("Listo para despacho / Retiro")'>
-                Listo <span class="badge">@ContarPorEstado("Listo para despacho / Retiro")</span>
-            </div>
-            <div class="tab-pill @(filtroEstado == "En proceso de instalación" ? "active" : "")" @onclick='() => FiltrarEstado("En proceso de instalación")'>
-                Instalación <span class="badge">@ContarPorEstado("En proceso de instalación")</span>
-            </div>
-            <div class="tab-pill @(filtroEstado == "Finalizado" ? "active" : "")" @onclick='() => FiltrarEstado("Finalizado")'>
-                Finalizado <span class="badge">@ContarPorEstado("Finalizado")</span>
+    <!-- Filtro de Pestañas por Estados de Taller con Slider Horizontal -->
+    <div class="px-3 mt-3">
+        <div class="tabs-slider-wrapper">
+            <div class="tabs-container d-flex gap-2">
+                <div class="tab-pill @(filtroEstado == "En espera" ? "active" : "")" @onclick='() => FiltrarEstado("En espera")'>
+                    En espera <span class="badge">@ContarPorEstado("En espera")</span>
+                </div>
+                <div class="tab-pill @(filtroEstado == "En proceso de cortes" ? "active" : "")" @onclick='() => FiltrarEstado("En proceso de cortes")'>
+                    Cortes <span class="badge">@ContarPorEstado("En proceso de cortes")</span>
+                </div>
+                <div class="tab-pill @(filtroEstado == "En proceso de cantos / bordes" ? "active" : "")" @onclick='() => FiltrarEstado("En proceso de cantos / bordes")'>
+                    Cantos <span class="badge">@ContarPorEstado("En proceso de cantos / bordes")</span>
+                </div>
+                <div class="tab-pill @(filtroEstado == "En proceso de armado / premontaje" ? "active" : "")" @onclick='() => FiltrarEstado("En proceso de armado / premontaje")'>
+                    Armado <span class="badge">@ContarPorEstado("En proceso de armado / premontaje")</span>
+                </div>
+                <div class="tab-pill @(filtroEstado == "Listo para despacho / Retiro" ? "active" : "")" @onclick='() => FiltrarEstado("Listo para despacho / Retiro")'>
+                    Listo <span class="badge">@ContarPorEstado("Listo para despacho / Retiro")</span>
+                </div>
+                <div class="tab-pill @(filtroEstado == "En proceso de instalación" ? "active" : "")" @onclick='() => FiltrarEstado("En proceso de instalación")'>
+                    Instalación <span class="badge">@ContarPorEstado("En proceso de instalación")</span>
+                </div>
+                <div class="tab-pill @(filtroEstado == "Finalizado" ? "active" : "")" @onclick='() => FiltrarEstado("Finalizado")'>
+                    Finalizado <span class="badge">@ContarPorEstado("Finalizado")</span>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Listado de Proyectos -->
-    <div class="listado-section px-4 mt-3">
+    <div class="listado-section px-3 mt-3">
         @if (cargando)
         {
             <div class="d-flex justify-center my-6">
@@ -145,24 +147,19 @@
 
     <!-- Barra de Navegación Inferior Centrada (5 Íconos) -->
     <div class="bottom-nav">
-        <!-- 1. Dashboard -->
         <div class="nav-item" @onclick="IrAHome">
             <MudIcon Icon="@Icons.Material.Filled.Home" Size="Size.Medium" />
         </div>
-        <!-- 2. Clientes -->
         <div class="nav-item" @onclick="IrAClientes">
             <MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" Size="Size.Medium" />
         </div>
-        <!-- 3. Proyectos / Taller (Activo aquí) -->
         <div class="nav-item active" @onclick="IrAProyectos">
             <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Medium" />
             <div class="nav-indicator"></div>
         </div>
-        <!-- 4. Relevamiento Técnico -->
         <div class="nav-item" @onclick="IrARelevamiento">
             <MudIcon Icon="@Icons.Material.Outlined.Receipt" Size="Size.Medium" />
         </div>
-        <!-- 5. Catálogo de Materiales -->
         <div class="nav-item" @onclick="IrACatalogo">
             <MudIcon Icon="@Icons.Material.Outlined.Layers" Size="Size.Medium" />
         </div>
@@ -220,6 +217,13 @@
                                      PopoverClass="z-modal-popover"
                                      AdornmentIcon="@Icons.Material.Filled.PersonSearch"
                                      Class="mb-3" />
+
+                    <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Estado del Proyecto</MudText>
+                    <MudSelect T="int" @bind-Value="modeloEdicion.EstadoId" Placeholder="Seleccione estado general" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" PopoverClass="z-modal-popover">
+                        <MudSelectItem Value="1">En espera</MudSelectItem>
+                        <MudSelectItem Value="2">En proceso</MudSelectItem>
+                        <MudSelectItem Value="3">En instalación</MudSelectItem>
+                    </MudSelect>
 
                     <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Estado de Taller</MudText>
                     <MudSelect T="int" @bind-Value="modeloEdicion.EstadoTallerId" Placeholder="Seleccione estado de taller" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" PopoverClass="z-modal-popover">
@@ -308,9 +312,9 @@
 
     .header-section {
         background-color: #181c24;
-        padding: 20px 16px 30px 16px;
-        border-bottom-left-radius: 24px;
-        border-bottom-right-radius: 24px;
+        padding: 16px 16px 20px 16px;
+        border-bottom-left-radius: 20px;
+        border-bottom-right-radius: 20px;
     }
 
     .text-muted-header {
@@ -328,10 +332,37 @@
         border: 1px solid #e9ecef;
     }
 
-    .tabs-container {
-        overflow-x: auto;
+    .tabs-slider-wrapper {
+        position: relative;
         padding-bottom: 4px;
     }
+
+    .tabs-container {
+        overflow-x: auto;
+        padding-bottom: 8px;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+
+        .tabs-container::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .tabs-container::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 4px;
+        }
+
+        .tabs-container::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 4px;
+        }
+
+            .tabs-container::-webkit-scrollbar-thumb:hover {
+                background: #64748b;
+            }
 
     .tab-pill {
         background-color: #e5e7eb;
@@ -460,7 +491,7 @@
         height: 60px;
         background: #181c24;
         display: flex;
-        justify-content: space-around;
+        justify-space: space-around;
         align-items: center;
         z-index: 1000;
         box-sizing: border-box;
@@ -677,6 +708,17 @@
         };
     }
 
+    private int ObtenerIdEstadoPorNombre(string? nombre)
+    {
+        return nombre switch
+        {
+            "En proceso" => 2,
+            "En instalacion" => 3,
+            "Finalizado" => 3, // Adaptado a la BD para no enviar un ID inexistente
+            _ => 1 // En espera
+        };
+    }
+
     private void AbrirModalNuevo()
     {
         modeloNuevo = new CrearProyectoRequest
@@ -692,13 +734,14 @@
 
     private void AbrirModalEditar(ProyectoListadoResponse proj)
     {
-        string estadoActual = string.IsNullOrEmpty(proj.EstadoTaller) ? "En espera" : proj.EstadoTaller;
+        string estadoTallerActual = string.IsNullOrEmpty(proj.EstadoTaller) ? "En espera" : proj.EstadoTaller;
+        string estadoGeneralActual = proj.NombreEstado ?? "En espera";
 
         modeloEdicion = new ActualizarProyectoRequest
         {
             NombreProyecto = proj.NombreProyecto,
-            EstadoTallerId = ObtenerIdTallerPorNombre(estadoActual),
-            EstadoId = 1
+            EstadoTallerId = ObtenerIdTallerPorNombre(estadoTallerActual),
+            EstadoId = ObtenerIdEstadoPorNombre(estadoGeneralActual)
         };
 
         clienteSeleccionado = listaClientes.FirstOrDefault(c => c.NombreApellido == proj.NombreCliente);
