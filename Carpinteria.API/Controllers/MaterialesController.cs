@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using TP5_Servicios_API_REST.DTOs.Material.Request;
-using TP5_Servicios_API_REST.DTOs.Material.Response;
+using Carpinteria.API.DTOs.Material.Response;
 using TP5_Servicios_API_REST.Excepciones;
 using TP5_Servicios_API_REST.Models;
 using TP5_Servicios_API_REST.Services;

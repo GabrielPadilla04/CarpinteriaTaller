@@ -10,7 +10,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 1. Base de datos (Lee automáticamente de launchSettings.json o variables de entorno)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 30))));
 
@@ -40,12 +39,12 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// 3. CORS
+// 3. CORS optimizado para evitar bloqueos de Preflight en producción
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Permisivo", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(_ => true)
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
@@ -69,7 +68,6 @@ builder.Services.AddScoped<CategoriaMaterialService>();
 builder.Services.AddScoped<ProveedorService>();
 builder.Services.AddScoped<CompraService>();
 builder.Services.AddScoped<EstadoTallerService>();
-// builder.Services.AddScoped<ImagenService>(); // Descomentar solo si usas carga de imágenes local
 
 // 5. Controladores y OpenAPI NATIVO de .NET
 builder.Services.AddControllers();
@@ -90,7 +88,7 @@ app.MapScalarApiReference(options =>
 // Redirecciona automáticamente la raíz (/) directamente hacia la interfaz de Scalar
 app.MapGet("/", () => Results.Redirect("/scalar/v1"));
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection(); // Eliminado para evitar conflictos de socket en IIS/Runasp
 app.UseStaticFiles();
 app.UseCors("Permisivo");
 app.UseAuthentication();

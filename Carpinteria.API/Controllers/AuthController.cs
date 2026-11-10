@@ -74,7 +74,14 @@ namespace TP5_Servicios_API_REST.Controllers
                 return Unauthorized(new { mensaje = "Credenciales inválidas." });
 
             var token = GenerarJwtToken(usuario);
-            return Ok(new { token });
+
+            // Devolvemos el token junto con el rol para que el frontend pueda validarlo y redirigir
+            return Ok(new
+            {
+                token,
+                rolesId = usuario.RolesId,
+                mensaje = "¡Login exitoso!"
+            });
         }
 
         [HttpPost("forgot-password")]

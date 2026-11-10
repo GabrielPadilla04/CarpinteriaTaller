@@ -1,12 +1,15 @@
-﻿namespace TP5_Servicios_API_REST.DTOs.Material.Response
+﻿using System.Text.Json.Serialization;
+
+namespace Carpinteria.API.DTOs.Material.Response
 {
     public record MaterialResponse(
-        int MaterialId,
-        int CategoriaId,
-        string? NombreCategoria,
-        string MarcaProveedor,
-        string NombreColorDiseno,
-        string? Acabado,
-        string? EspesorDisponible
+        [property: JsonPropertyName("materialId")] int MaterialId,
+        [property: JsonPropertyName("categoriaId")] int CategoriaId,
+        [property: JsonPropertyName("nombreCategoria")] string? NombreCategoria,
+        [property: JsonPropertyName("marcaProveedor")] string MarcaProveedor,
+        [property: JsonPropertyName("nombreColorDiseno")] string NombreColorDiseno,
+        [property: JsonPropertyName("acabado")] string? Acabado,
+        [property: JsonPropertyName("espesorDisponible")] string? EspesorDisponible,
+        [property: JsonPropertyName("imagenUrl")] string? ImagenUrl
     );
 }

@@ -15,5 +15,6 @@ namespace FrontendCarpinteria.DTOs.Material.Request
 
         public string? Acabado { get; set; }
         public string? EspesorDisponible { get; set; }
+        public string? ImagenUrl { get; set; }
     }
 }

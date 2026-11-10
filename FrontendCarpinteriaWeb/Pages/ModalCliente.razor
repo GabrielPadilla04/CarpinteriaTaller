@@ -1,0 +1,117 @@
+﻿@using FrontendCarpinteriaWeb.DTOs.Cliente.Request
+@using FrontendCarpinteriaWeb.DTOs.Cliente.Response
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValido">
+            <!-- Nombre y Apellido -->
+            <MudTextField @bind-Value="_modelo.NombreApellido"
+                          Label="Nombre y Apellido"
+                          Placeholder="Ej. Horacio Padilla"
+                          Required="true"
+                          RequiredError="El nombre y apellido es obligatorio."
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="mb-3" />
+
+            <!-- Dirección de la Obra -->
+            <MudTextField @bind-Value="_modelo.DireccionObra"
+                          Label="Dirección de la Obra / Notas"
+                          Placeholder="Ej. Av. San Martín 1234, Planta Alta"
+                          Lines="2"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="mb-3" />
+
+            <!-- Teléfono de Contacto -->
+            <MudTextField @bind-Value="_modelo.Telefono"
+                          Label="Teléfono de Contacto"
+                          Placeholder="+54 2954 123456"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="mb-3" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancelar">Cancelar</MudButton>
+        <MudButton Color="Color.Dark" Variant="Variant.Filled" Disabled="_cargando" OnClick="Guardar">
+            @if (_cargando)
+            {
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                <span class="ms-2">Guardando...</span>
+            }
+            else
+            {
+                <span>@(ClienteEdicion != null ? "Guardar Cambios" : "Registrar Cliente")</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudBlazor.IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public ClienteResponse? ClienteEdicion { get; set; }
+
+    private MudForm _form = default!;
+    private bool _isValido;
+    private bool _cargando;
+    private CrearClienteRequest _modelo = new();
+
+    protected override void OnInitialized()
+    {
+        if (ClienteEdicion != null)
+        {
+            _modelo = new CrearClienteRequest
+            {
+                NombreApellido = ClienteEdicion.NombreApellido,
+                DireccionObra = ClienteEdicion.DireccionObra,
+                Telefono = ClienteEdicion.Telefono
+            };
+        }
+    }
+
+    private async Task Guardar()
+    {
+        await _form.Validate();
+        if (!_isValido) return;
+
+        try
+        {
+            _cargando = true;
+            HttpResponseMessage response;
+
+            if (ClienteEdicion != null)
+            {
+                response = await Http.PutAsJsonAsync($"api/clientes/{ClienteEdicion.ClienteId}", _modelo);
+            }
+            else
+            {
+                response = await Http.PostAsJsonAsync("api/clientes", _modelo);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(ClienteEdicion != null ? "¡Cliente actualizado!" : "¡Cliente registrado con éxito!", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error de conexión: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+}

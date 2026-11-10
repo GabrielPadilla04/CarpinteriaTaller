@@ -1,0 +1,50 @@
+﻿@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValido">
+            <MudTextField @bind-Value="_nombre" Label="Nombre de la Categoría" Required="true" RequiredError="El nombre es obligatorio." Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancelar">Cancelar</MudButton>
+        <MudButton Color="Color.Dark" Variant="Variant.Filled" Disabled="_cargando" OnClick="Guardar">Guardar Categoría</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudBlazor.IMudDialogInstance MudDialog { get; set; } = default!;
+    private MudForm _form = default!;
+    private bool _isValido;
+    private bool _cargando;
+    private string _nombre = string.Empty;
+
+    private async Task Guardar()
+    {
+        await _form.Validate();
+        if (!_isValido) return;
+
+        try
+        {
+            _cargando = true;
+            var response = await Http.PostAsJsonAsync("api/categorias-material", new { NombreCategoria = _nombre });
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("¡Categoría creada exitosamente!", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error: {err}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally { _cargando = false; }
+    }
+    private void Cancelar() => MudDialog.Cancel();
+}

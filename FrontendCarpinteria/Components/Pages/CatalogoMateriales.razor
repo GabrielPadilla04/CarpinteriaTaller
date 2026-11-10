@@ -5,6 +5,7 @@
 @inject ISnackbar Snackbar
 @using FrontendCarpinteria.DTOs.CategoriaMaterial.Response
 @using FrontendCarpinteria.DTOs.Material.Response
+@using System.Text.Json
 
 <div class="catalogo-container">
     <!-- Encabezado Oscuro -->
@@ -24,7 +25,7 @@
             @(vistaDetalle ? categoriaSeleccionadaNombre : "Materiales")
         </MudText>
 
-        <!-- Tarjeta Blanca de Resumen -->
+        <!-- Tarjeta Blanca de Resumen Dinámica -->
         <MudPaper Elevation="0" Class="pa-4 rounded-xl card-resumen">
             <MudText Typo="Typo.subtitle2" Class="fw-bold text-dark mb-1">
                 @(vistaDetalle ? categoriaSeleccionadaNombre : "Categorías")
@@ -57,7 +58,6 @@
                     <MudStack Spacing="3">
                         @foreach (var cat in categorias)
                         {
-                            <!-- Usamos cat.CategoriaId y cat.NombreCategoria -->
                             <MudPaper Elevation="0" Class="pa-4 categoria-card hover-card" @onclick="() => VerMaterialesPorCategoria(cat.CategoriaId, cat.NombreCategoria)">
                                 <div class="d-flex justify-space-between align-center">
                                     <div>
@@ -78,19 +78,29 @@
             }
             else
             {
-                <!-- VISTA 2: GRILLA DE MATERIALES DE LA CATEGORÍA SELECCIONADA -->
-                @if (materialesFiltrados == null || !materialesFiltrados.Any())
+                <!-- VISTA 2: GRILLA DE MATERIALES FILTRADOS POR NOMBRE DE CATEGORÍA -->
+                @if (MaterialesDeCategoriaActual == null || !MaterialesDeCategoriaActual.Any())
                 {
-                    <MudText Typo="Typo.body2" Class="text-muted text-center py-4">No hay materiales en esta categoría.</MudText>
+                    <div class="text-center py-5">
+                        <MudText Typo="Typo.body2" Class="text-muted">No hay materiales registrados en esta categoría.</MudText>
+                    </div>
                 }
                 else
                 {
                     <div class="grid-materiales">
-                        @foreach (var mat in materialesFiltrados)
+                        @foreach (var mat in MaterialesDeCategoriaActual)
                         {
                             <MudPaper Elevation="0" Class="pa-3 material-card d-flex flex-column justify-space-between">
-                                <div class="material-img-box rounded-lg mb-2 d-flex align-center justify-center">
-                                    <MudIcon Icon="@Icons.Material.Filled.Texture" Size="Size.Large" Style="color: #9ca3af;" />
+                                <!-- Contenedor de la imagen del material -->
+                                <div class="material-img-box rounded-lg mb-2 d-flex align-center justify-center overflow-hidden">
+                                    @if (!string.IsNullOrWhiteSpace(mat.ImagenUrl))
+                                    {
+                                        <img src="@mat.ImagenUrl" alt="@mat.NombreColorDiseno" style="width: 100%; height: 100%; object-fit: cover;" />
+                                    }
+                                    else
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.Texture" Size="Size.Large" Style="color: #9ca3af;" />
+                                    }
                                 </div>
                                 <div>
                                     <MudText Typo="Typo.body2" Class="fw-bold text-dark" Style="font-size: 13px; line-height: 1.2;">
@@ -148,7 +158,8 @@
 
     .header-section {
         background-color: #181c24;
-        padding: 24px 16px 30px 16px;
+        padding: 16px 16px 24px 16px; /* Redujimos el padding superior a 16px */
+        margin-top: 0 !important; /* Forzamos cero margen arriba */
         border-bottom-left-radius: 24px;
         border-bottom-right-radius: 24px;
     }
@@ -194,12 +205,12 @@
         background-color: #ffffff !important;
         border-radius: 14px !important;
         border: 1px solid #e5e7eb;
-        height: 145px;
+        height: 185px; /* Ajustado ligeramente si necesitabas espacio para la imagen */
     }
 
     .material-img-box {
         width: 100%;
-        height: 70px;
+        height: 90px;
         background-color: #f8f9fa;
     }
 
@@ -259,11 +270,17 @@
 @code {
     private bool cargando = true;
     private bool vistaDetalle = false;
+    private int categoriaSeleccionadaId = 0;
     private string categoriaSeleccionadaNombre = "";
 
     private List<CategoriaMaterialResponse> categorias = new();
-    private List<MaterialResponse> materiales = new();
-    private List<MaterialResponse> materialesFiltrados = new();
+    private List<MaterialListadoResponse> materiales = new();
+
+    private IEnumerable<MaterialListadoResponse> MaterialesDeCategoriaActual =>
+        materiales.Where(m =>
+            (m.CategoriaId > 0 && m.CategoriaId == categoriaSeleccionadaId) ||
+            (!string.IsNullOrEmpty(m.NombreCategoria) && m.NombreCategoria.Equals(categoriaSeleccionadaNombre, StringComparison.OrdinalIgnoreCase))
+        );
 
     protected override async Task OnInitializedAsync()
     {
@@ -276,7 +293,23 @@
         {
             cargando = true;
             categorias = await Http.GetFromJsonAsync<List<CategoriaMaterialResponse>>("api/categorias-material?page=1&pageSize=50") ?? new();
-            materiales = await Http.GetFromJsonAsync<List<MaterialResponse>>("api/materiales?page=1&pageSize=100") ?? new();
+
+            var response = await Http.GetAsync("api/materiales?page=1&pageSize=100");
+            if (response.IsSuccessStatusCode)
+            {
+                var jsonString = await response.Content.ReadAsStringAsync();
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+                try
+                {
+                    materiales = JsonSerializer.Deserialize<List<MaterialListadoResponse>>(jsonString, options) ?? new();
+                }
+                catch
+                {
+                    var wrapper = JsonSerializer.Deserialize<MaterialPaginadoWrapper>(jsonString, options);
+                    materiales = wrapper?.Items ?? wrapper?.Resultado ?? wrapper?.Data ?? new();
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -285,20 +318,24 @@
         finally
         {
             cargando = false;
+            StateHasChanged();
         }
     }
 
     private void VerMaterialesPorCategoria(int categoriaId, string nombreCategoria)
     {
+        categoriaSeleccionadaId = categoriaId;
         categoriaSeleccionadaNombre = nombreCategoria;
-        materialesFiltrados = materiales.Where(m => m.CategoriaId == categoriaId).ToList();
         vistaDetalle = true;
+        StateHasChanged();
     }
 
     private void VolverACategorias()
     {
         vistaDetalle = false;
         categoriaSeleccionadaNombre = "";
+        categoriaSeleccionadaId = 0;
+        StateHasChanged();
     }
 
     private void IrAHome() => Navigation.NavigateTo("/dashboard");
@@ -306,4 +343,11 @@
     private void IrAProyectos() => Navigation.NavigateTo("/proyectos");
     private void IrARelevamiento() => Navigation.NavigateTo("/relevamiento");
     private void IrACatalogo() => Navigation.NavigateTo("/catalogo");
+
+    private class MaterialPaginadoWrapper
+    {
+        public List<MaterialListadoResponse>? Items { get; set; }
+        public List<MaterialListadoResponse>? Resultado { get; set; }
+        public List<MaterialListadoResponse>? Data { get; set; }
+    }
 }
