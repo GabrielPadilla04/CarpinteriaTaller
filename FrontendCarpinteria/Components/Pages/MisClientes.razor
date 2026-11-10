@@ -1,0 +1,390 @@
+﻿@page "/clientes"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@using FrontendCarpinteria.DTOs.Cliente.Response
+@using FrontendCarpinteria.DTOs.Cliente.Request
+
+<div class="clientes-container">
+    <!-- Encabezado Oscuro -->
+    <div class="header-section">
+        <div class="d-flex align-center mb-3">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="VolverAlDashboard"
+                           Class="pa-0 mr-3 text-white" />
+            <MudText Typo="Typo.h5" Class="fw-bold text-white">Mis Clientes</MudText>
+        </div>
+
+        <!-- Tarjeta Blanca de Resumen y Botón -->
+        <MudPaper Elevation="0" Class="pa-4 rounded-xl card-resumen">
+            <div class="d-flex gap-3 mb-4">
+                <div class="resumen-box flex-1 pa-3 rounded-lg">
+                    <div class="d-flex align-center gap-1 text-muted-custom mb-1">
+                        <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" />
+                        <span style="font-size: 12px;">Activos:</span>
+                    </div>
+                    <MudText Typo="Typo.h5" Class="fw-bold text-dark">@clientes.Count</MudText>
+                </div>
+                <div class="resumen-box flex-1 pa-3 rounded-lg">
+                    <div class="d-flex align-center gap-1 text-muted-custom mb-1">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline" Size="Size.Small" />
+                        <span style="font-size: 12px;">Terminados:</span>
+                    </div>
+                    <MudText Typo="Typo.h5" Class="fw-bold text-dark">0</MudText>
+                </div>
+            </div>
+
+            <MudButton Variant="Variant.Filled"
+                       FullWidth="true"
+                       Class="btn-agregar"
+                       OnClick="AbrirModalNuevo">
+                + Agregar Cliente
+            </MudButton>
+        </MudPaper>
+    </div>
+
+    <!-- Contenido del Listado -->
+    <div class="listado-section px-4 mt-4">
+        @if (cargando)
+        {
+            <div class="d-flex justify-center my-6">
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Dark" />
+            </div>
+        }
+        else if (clientes == null || !clientes.Any())
+        {
+            <MudText Typo="Typo.body2" Class="text-muted text-center py-4">No hay clientes registrados.</MudText>
+        }
+        else
+        {
+            <MudStack Spacing="3">
+                @foreach (var cliente in clientes)
+                {
+                    <MudPaper Elevation="0" Class="pa-4 cliente-card hover-card" @onclick="() => AbrirModalEditar(cliente)">
+                        <div class="d-flex align-center justify-space-between mb-3">
+                            <div class="d-flex align-center gap-2">
+                                <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Style="color: #6b7280;" />
+                                <MudText Typo="Typo.subtitle2" Class="fw-bold text-dark">@cliente.NombreApellido</MudText>
+                            </div>
+                            <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Style="color: #9ca3af;" />
+                        </div>
+
+                        <div class="sub-info-card pa-3 rounded-lg d-flex justify-space-between align-center">
+                            <div>
+                                <MudText Typo="Typo.caption" Class="text-muted-custom d-block">Obra:</MudText>
+                                <MudText Typo="Typo.body2" Class="fw-bold text-dark" Style="font-size: 13px;">@cliente.DireccionObra</MudText>
+                            </div>
+                            <div class="text-right">
+                                <MudText Typo="Typo.caption" Class="text-muted-custom d-block">Teléfono</MudText>
+                                <MudText Typo="Typo.body2" Class="fw-bold text-dark" Style="font-size: 13px;">@cliente.Telefono</MudText>
+                            </div>
+                        </div>
+                    </MudPaper>
+                }
+            </MudStack>
+        }
+    </div>
+
+    <!-- Modal Desplegable (Bottom Sheet) para Registrar / Editar -->
+    @if (mostrarModal)
+    {
+        <div class="modal-backdrop">
+            <div class="modal-card pa-5">
+                <div class="d-flex justify-space-between align-center mb-3">
+                    <MudText Typo="Typo.h6" Class="fw-bold text-dark">@(esEdicion ? "Editar Cliente" : "Registrar Cliente")</MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="CerrarModal" Size="Size.Small" />
+                </div>
+
+                <EditForm Model="@modelo" OnValidSubmit="GuardarCliente">
+                    <DataAnnotationsValidator />
+
+                    <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Nombre y Apellido</MudText>
+                    <MudTextField @bind-Value="modelo.NombreApellido" Placeholder="Ingrese nombre y apellido" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+
+                    <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Dirección de la Obra / Notas</MudText>
+                    <MudTextField @bind-Value="modelo.DireccionObra" Placeholder="Descripción" Variant="Variant.Outlined" Lines="2" Margin="Margin.Dense" Class="mb-3" />
+
+                    <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Teléfono de Contacto</MudText>
+                    <MudTextField @bind-Value="modelo.Telefono" Placeholder="+54 2954 123456" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" FullWidth="true" Class="btn-guardar py-3">
+                        @(esEdicion ? "Guardar Cambios" : "Registrar")
+                    </MudButton>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    <!-- Barra de Navegación Inferior Centrada (5 Íconos) -->
+    <div class="bottom-nav">
+        <!-- 1. Dashboard -->
+        <div class="nav-item" @onclick="IrAHome">
+            <MudIcon Icon="@Icons.Material.Filled.Home" Size="Size.Medium" />
+        </div>
+        <!-- 2. Clientes (Activo aquí) -->
+        <div class="nav-item active" @onclick="IrAClientes">
+            <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Medium" />
+            <div class="nav-indicator"></div>
+        </div>
+        <!-- 3. Proyectos / Estado del Taller -->
+        <div class="nav-item" @onclick="IrAProyectos">
+            <MudIcon Icon="@Icons.Material.Outlined.Assignment" Size="Size.Medium" />
+        </div>
+        <!-- 4. Relevamiento Técnico -->
+        <div class="nav-item" @onclick="IrARelevamiento">
+            <MudIcon Icon="@Icons.Material.Outlined.Receipt" Size="Size.Medium" />
+        </div>
+        <!-- 5. Catálogo de Materiales -->
+        <div class="nav-item" @onclick="IrACatalogo">
+            <MudIcon Icon="@Icons.Material.Outlined.Layers" Size="Size.Medium" />
+        </div>
+    </div>
+</div>
+
+<style>
+    .clientes-container {
+        max-width: 480px;
+        margin: 0 auto;
+        background-color: #f4f6f9;
+        min-height: 100vh;
+        padding-bottom: 90px;
+        box-sizing: border-box;
+        font-family: inherit;
+        position: relative;
+    }
+
+    .header-section {
+        background-color: #181c24;
+        padding: 24px 16px 40px 16px;
+        border-bottom-left-radius: 24px;
+        border-bottom-right-radius: 24px;
+    }
+
+    .card-resumen {
+        background-color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+    }
+
+    .resumen-box {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+    }
+
+    .btn-agregar {
+        background-color: #181c24 !important;
+        color: white !important;
+        border-radius: 12px !important;
+        text-transform: none !important;
+        padding: 12px 0 !important;
+        font-weight: 600 !important;
+    }
+
+    .cliente-card {
+        background-color: #ffffff !important;
+        border-radius: 16px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02) !important;
+        border: 1px solid #e5e7eb;
+        cursor: pointer;
+    }
+
+    .hover-card:hover {
+        border-color: #94a3b8;
+    }
+
+    .sub-info-card {
+        background-color: #f8f9fa;
+        border: 1px solid #eef2f6;
+    }
+
+    .text-dark {
+        color: #111827 !important;
+    }
+
+    .text-muted-custom {
+        color: #6b7280 !important;
+        font-size: 11px;
+    }
+
+    /* Estilos del Modal Desplegable inferior */
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .modal-card {
+        background-color: white;
+        width: 100%;
+        max-width: 480px;
+        max-height: 85vh;
+        overflow-y: auto;
+        border-top-left-radius: 24px;
+        border-top-right-radius: 24px;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+        animation: slideUp 0.3s ease-out;
+    }
+
+    .btn-guardar {
+        background-color: #181c24 !important;
+        color: white !important;
+        border-radius: 12px !important;
+        text-transform: none !important;
+        font-weight: 600 !important;
+    }
+
+    /* Barra inferior alineada y centrada */
+    .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: 0 auto;
+        width: 100%;
+        max-width: 480px;
+        height: 60px;
+        background: #181c24;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        z-index: 1000;
+        box-sizing: border-box;
+    }
+
+    .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        cursor: pointer;
+        position: relative;
+        padding: 8px;
+        flex: 1;
+    }
+
+        .nav-item.active {
+            color: #ffffff;
+        }
+
+    .nav-indicator {
+        position: absolute;
+        bottom: 4px;
+        width: 16px;
+        height: 2px;
+        background-color: white;
+        border-radius: 2px;
+    }
+
+    @@keyframes slideUp {
+        from {
+            transform: translateY(100%);
+        }
+
+        to {
+            transform: translateY(0);
+        }
+    }
+</style>
+
+@code {
+    private List<ClienteResponse> clientes = new();
+    private bool cargando = true;
+    private bool mostrarModal = false;
+    private bool esEdicion = false;
+    private int clienteIdActual = 0;
+    private CrearClienteRequest modelo = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarClientes();
+    }
+
+    private async Task CargarClientes()
+    {
+        try
+        {
+            cargando = true;
+            clientes = await Http.GetFromJsonAsync<List<ClienteResponse>>("api/clientes?page=1&pageSize=50") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AbrirModalNuevo()
+    {
+        modelo = new();
+        esEdicion = false;
+        clienteIdActual = 0;
+        mostrarModal = true;
+    }
+
+    private void AbrirModalEditar(ClienteResponse cliente)
+    {
+        modelo = new CrearClienteRequest
+        {
+            NombreApellido = cliente.NombreApellido,
+            Telefono = cliente.Telefono,
+            DireccionObra = cliente.DireccionObra
+        };
+        esEdicion = true;
+        clienteIdActual = cliente.ClienteId;
+        mostrarModal = true;
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+    }
+
+    private async Task GuardarCliente()
+    {
+        try
+        {
+            HttpResponseMessage response;
+            if (esEdicion)
+            {
+                response = await Http.PutAsJsonAsync($"api/clientes/{clienteIdActual}", modelo);
+            }
+            else
+            {
+                response = await Http.PostAsJsonAsync("api/clientes", modelo);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(esEdicion ? "¡Cliente actualizado!" : "¡Cliente registrado!", Severity.Success);
+                mostrarModal = false;
+                await CargarClientes();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error de conexión: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void VolverAlDashboard() => Navigation.NavigateTo("/dashboard");
+    private void IrAHome() => Navigation.NavigateTo("/dashboard");
+    private void IrAClientes() => Navigation.NavigateTo("/clientes");
+    private void IrAProyectos() => Navigation.NavigateTo("/proyectos");
+    private void IrARelevamiento() => Navigation.NavigateTo("/relevamiento");
+    private void IrACatalogo() => Navigation.NavigateTo("/catalogo");
+}

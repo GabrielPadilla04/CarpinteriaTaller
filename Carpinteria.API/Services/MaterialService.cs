@@ -1,8 +1,9 @@
+using Carpinteria.API.DTOs.Material.Response;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using TP5_Servicios_API_REST.Data;
 using TP5_Servicios_API_REST.DTOs.Material.Request;
-using TP5_Servicios_API_REST.DTOs.Material.Response;
+using Carpinteria.API.DTOs.Material.Response;
 using TP5_Servicios_API_REST.Excepciones;
 using TP5_Servicios_API_REST.Models;
 
@@ -31,7 +32,7 @@ namespace TP5_Servicios_API_REST.Services
         private int ObtenerUsuarioIdActual()
         {
             var userIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)
-                              ?? _httpContextAccessor.HttpContext?.User?.FindFirst("id");
+                            ?? _httpContextAccessor.HttpContext?.User?.FindFirst("id");
 
             if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int usuarioId))
             {
@@ -47,15 +48,17 @@ namespace TP5_Servicios_API_REST.Services
             {
                 return await _context.Materiales
                     .Include(m => m.CategoriaMaterial)
-                    .Skip((page - 1) * pageSize) // Corregido el parámetro de paginación
+                    .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .Select(m => new MaterialListadoResponse(
                         m.MaterialId,
+                        m.CategoriaId, // <--- Incluido para resolver el filtrado por ID si se requiere
                         m.MarcaProveedor,
                         m.NombreColorDiseno,
                         m.Acabado,
                         m.EspesorDisponible,
-                        m.CategoriaMaterial != null ? m.CategoriaMaterial.NombreCategoria : "Sin categoría"))
+                        m.CategoriaMaterial != null ? m.CategoriaMaterial.NombreCategoria : "Sin categoría",
+                        m.ImagenUrl)) // <--- Mapeo de la imagen
                     .ToListAsync();
             }
             catch (Exception ex)
@@ -84,7 +87,8 @@ namespace TP5_Servicios_API_REST.Services
                     material.MarcaProveedor,
                     material.NombreColorDiseno,
                     material.Acabado,
-                    material.EspesorDisponible);
+                    material.EspesorDisponible,
+                    material.ImagenUrl); // <--- Mapeo de la imagen
             }
             catch (RecursoNoExisteException) { throw; }
             catch (Exception ex)
@@ -110,7 +114,8 @@ namespace TP5_Servicios_API_REST.Services
                     MarcaProveedor = dto.MarcaProveedor,
                     NombreColorDiseno = dto.NombreColorDiseno,
                     Acabado = dto.Acabado,
-                    EspesorDisponible = dto.EspesorDisponible
+                    EspesorDisponible = dto.EspesorDisponible,
+                    ImagenUrl = dto.ImagenUrl // <--- Asignación de la imagen
                 };
 
                 _context.Materiales.Add(nuevoMaterial);
@@ -136,11 +141,13 @@ namespace TP5_Servicios_API_REST.Services
 
                 return new MaterialListadoResponse(
                     nuevoMaterial.MaterialId,
+                    nuevoMaterial.CategoriaId,
                     nuevoMaterial.MarcaProveedor,
                     nuevoMaterial.NombreColorDiseno,
                     nuevoMaterial.Acabado,
                     nuevoMaterial.EspesorDisponible,
-                    nuevoMaterial.CategoriaMaterial?.NombreCategoria);
+                    nuevoMaterial.CategoriaMaterial?.NombreCategoria,
+                    nuevoMaterial.ImagenUrl);
             }
             catch (RecursoNoExisteException) { throw; }
             catch (DbUpdateException ex)
@@ -179,6 +186,7 @@ namespace TP5_Servicios_API_REST.Services
                 material.NombreColorDiseno = dto.NombreColorDiseno;
                 material.Acabado = dto.Acabado;
                 material.EspesorDisponible = dto.EspesorDisponible;
+                material.ImagenUrl = dto.ImagenUrl; // <--- Actualización de la imagen
 
                 _context.Materiales.Update(material);
                 await _context.SaveChangesAsync();

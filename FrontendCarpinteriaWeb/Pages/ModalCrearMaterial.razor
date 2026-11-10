@@ -1,0 +1,170 @@
+﻿@inject HttpClient Http
+@inject ISnackbar Snackbar
+@using FrontendCarpinteriaWeb.DTOs.CategoriaMaterial.Response
+@using FrontendCarpinteriaWeb.DTOs.Material.Response
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValido">
+            <!-- Selector de Categoría -->
+            <MudSelect T="int" @bind-Value="_categoriaIdSeleccionada"
+                       Label="Categoría"
+                       Required="true"
+                       RequiredError="Debe seleccionar una categoría."
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Class="mb-3">
+                <MudSelectItem Value="0" Disabled="true">Seleccione una categoría...</MudSelectItem>
+                @foreach (var cat in _categorias)
+                {
+                    <MudSelectItem Value="@cat.CategoriaId">@cat.NombreCategoria</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudTextField @bind-Value="_nombreColor"
+                          Label="Nombre / Color / Diseño"
+                          Required="true"
+                          RequiredError="Este campo es obligatorio."
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="mb-3" />
+
+            <MudTextField @bind-Value="_marcaProveedor"
+                          Label="Marca / Proveedor"
+                          Required="true"
+                          RequiredError="La marca es obligatoria."
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="mb-3" />
+
+            <MudTextField @bind-Value="_acabado"
+                          Label="Acabado (Opcional)"
+                          Placeholder="Ej. Mate, Brillo"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="mb-3" />
+
+            <MudTextField @bind-Value="_espesor"
+                          Label="Espesor Disponible (Opcional)"
+                          Placeholder="Ej. 18mm"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="mb-3" />
+
+            <!-- Campo para la URL de la Imagen -->
+            <MudTextField @bind-Value="_imagenUrl"
+                          Label="URL de la Imagen (Opcional)"
+                          Placeholder="https://ejemplo.com/imagen.jpg"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="mb-3" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancelar">Cancelar</MudButton>
+        <MudButton Color="Color.Dark" Variant="Variant.Filled" Disabled="_cargando" OnClick="Guardar">
+            @(MaterialEdicion == null ? "Registrar Material" : "Guardar Cambios")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public MudBlazor.IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public MaterialListadoResponse? MaterialEdicion { get; set; }
+
+    private MudForm _form = default!;
+    private bool _isValido;
+    private bool _cargando;
+    private int _categoriaIdSeleccionada;
+    private string _nombreColor = string.Empty;
+    private string _marcaProveedor = string.Empty;
+    private string? _acabado = string.Empty;
+    private string? _espesor = string.Empty;
+    private string? _imagenUrl = string.Empty;
+
+    private List<CategoriaMaterialResponse> _categorias = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarCategorias();
+
+        if (MaterialEdicion != null)
+        {
+            _categoriaIdSeleccionada = MaterialEdicion.CategoriaId;
+            _nombreColor = MaterialEdicion.NombreColorDiseno;
+            _marcaProveedor = MaterialEdicion.MarcaProveedor;
+            _acabado = MaterialEdicion.Acabado;
+            _espesor = MaterialEdicion.EspesorDisponible;
+            _imagenUrl = MaterialEdicion.ImagenUrl;
+        }
+    }
+
+    private async Task CargarCategorias()
+    {
+        try
+        {
+            _categorias = await Http.GetFromJsonAsync<List<CategoriaMaterialResponse>>("api/categorias-material?page=1&pageSize=50") ?? new();
+        }
+        catch
+        {
+            _categorias = new();
+        }
+    }
+
+    private async Task Guardar()
+    {
+        await _form.Validate();
+        if (!_isValido || _categoriaIdSeleccionada == 0)
+        {
+            if (_categoriaIdSeleccionada == 0)
+                Snackbar.Add("Debe seleccionar una categoría.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _cargando = true;
+            var payload = new
+            {
+                CategoriaId = _categoriaIdSeleccionada,
+                NombreColorDiseno = _nombreColor,
+                MarcaProveedor = _marcaProveedor,
+                Acabado = string.IsNullOrWhiteSpace(_acabado) ? null : _acabado,
+                EspesorDisponible = string.IsNullOrWhiteSpace(_espesor) ? null : _espesor,
+                ImagenUrl = string.IsNullOrWhiteSpace(_imagenUrl) ? null : _imagenUrl
+            };
+
+            HttpResponseMessage response;
+            if (MaterialEdicion == null)
+            {
+                response = await Http.PostAsJsonAsync("api/materiales", payload);
+            }
+            else
+            {
+                response = await Http.PutAsJsonAsync($"api/materiales/{MaterialEdicion.MaterialId}", payload);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                var mensaje = MaterialEdicion == null ? "¡Material registrado con éxito!" : "¡Material actualizado con éxito!";
+                Snackbar.Add(mensaje, Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error: {err}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private void Cancelar() => MudDialog.Cancel();
+}

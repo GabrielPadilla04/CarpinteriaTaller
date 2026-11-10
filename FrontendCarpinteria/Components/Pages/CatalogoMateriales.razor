@@ -1,0 +1,353 @@
+﻿@page "/catalogo"
+@page "/catalogo-materiales"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@using FrontendCarpinteria.DTOs.CategoriaMaterial.Response
+@using FrontendCarpinteria.DTOs.Material.Response
+@using System.Text.Json
+
+<div class="catalogo-container">
+    <!-- Encabezado Oscuro -->
+    <div class="header-section">
+        <div class="d-flex align-center justify-space-between mb-1">
+            <div class="d-flex align-center">
+                @if (vistaDetalle)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                                   OnClick="VolverACategorias"
+                                   Class="pa-0 mr-3 text-white" />
+                }
+                <MudText Typo="Typo.h5" Class="fw-bold text-white">Catálogo de Materiales y Acabados</MudText>
+            </div>
+        </div>
+        <MudText Typo="Typo.caption" Class="text-muted-header mb-4 d-block">
+            @(vistaDetalle ? categoriaSeleccionadaNombre : "Materiales")
+        </MudText>
+
+        <!-- Tarjeta Blanca de Resumen Dinámica -->
+        <MudPaper Elevation="0" Class="pa-4 rounded-xl card-resumen">
+            <MudText Typo="Typo.subtitle2" Class="fw-bold text-dark mb-1">
+                @(vistaDetalle ? categoriaSeleccionadaNombre : "Categorías")
+            </MudText>
+            <MudText Typo="Typo.caption" Class="text-muted-custom d-block">
+                @(vistaDetalle ? "Selección de materiales disponibles" : "Explora por tipo de material")
+            </MudText>
+        </MudPaper>
+    </div>
+
+    <!-- Contenido Principal -->
+    <div class="listado-section px-4 mt-4">
+        @if (cargando)
+        {
+            <div class="d-flex justify-center my-6">
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Dark" />
+            </div>
+        }
+        else
+        {
+            @if (!vistaDetalle)
+            {
+                <!-- VISTA 1: LISTADO DE CATEGORÍAS -->
+                @if (categorias == null || !categorias.Any())
+                {
+                    <MudText Typo="Typo.body2" Class="text-muted text-center py-4">No hay categorías disponibles.</MudText>
+                }
+                else
+                {
+                    <MudStack Spacing="3">
+                        @foreach (var cat in categorias)
+                        {
+                            <MudPaper Elevation="0" Class="pa-4 categoria-card hover-card" @onclick="() => VerMaterialesPorCategoria(cat.CategoriaId, cat.NombreCategoria)">
+                                <div class="d-flex justify-space-between align-center">
+                                    <div>
+                                        <MudText Typo="Typo.subtitle1" Class="fw-bold text-dark mb-1">@cat.NombreCategoria</MudText>
+                                        <div class="d-flex align-center gap-1 text-link" style="color: #4f46e5; font-size: 13px; font-weight: 600;">
+                                            <span>Ver más</span>
+                                            <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" />
+                                        </div>
+                                    </div>
+                                    <div class="imagen-placeholder rounded-lg">
+                                        <MudIcon Icon="@Icons.Material.Filled.Inventory2" Size="Size.Large" Style="color: #9ca3af;" />
+                                    </div>
+                                </div>
+                            </MudPaper>
+                        }
+                    </MudStack>
+                }
+            }
+            else
+            {
+                <!-- VISTA 2: GRILLA DE MATERIALES FILTRADOS POR NOMBRE DE CATEGORÍA -->
+                @if (MaterialesDeCategoriaActual == null || !MaterialesDeCategoriaActual.Any())
+                {
+                    <div class="text-center py-5">
+                        <MudText Typo="Typo.body2" Class="text-muted">No hay materiales registrados en esta categoría.</MudText>
+                    </div>
+                }
+                else
+                {
+                    <div class="grid-materiales">
+                        @foreach (var mat in MaterialesDeCategoriaActual)
+                        {
+                            <MudPaper Elevation="0" Class="pa-3 material-card d-flex flex-column justify-space-between">
+                                <!-- Contenedor de la imagen del material -->
+                                <div class="material-img-box rounded-lg mb-2 d-flex align-center justify-center overflow-hidden">
+                                    @if (!string.IsNullOrWhiteSpace(mat.ImagenUrl))
+                                    {
+                                        <img src="@mat.ImagenUrl" alt="@mat.NombreColorDiseno" style="width: 100%; height: 100%; object-fit: cover;" />
+                                    }
+                                    else
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.Texture" Size="Size.Large" Style="color: #9ca3af;" />
+                                    }
+                                </div>
+                                <div>
+                                    <MudText Typo="Typo.body2" Class="fw-bold text-dark" Style="font-size: 13px; line-height: 1.2;">
+                                        @mat.NombreColorDiseno
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Class="text-muted-custom">
+                                        @mat.MarcaProveedor
+                                    </MudText>
+                                </div>
+                            </MudPaper>
+                        }
+                    </div>
+                }
+            }
+        }
+    </div>
+
+    <!-- Barra de Navegación Inferior Centrada (5 Íconos) -->
+    <div class="bottom-nav">
+        <!-- 1. Dashboard -->
+        <div class="nav-item" @onclick="IrAHome">
+            <MudIcon Icon="@Icons.Material.Filled.Home" Size="Size.Medium" />
+        </div>
+        <!-- 2. Clientes -->
+        <div class="nav-item" @onclick="IrAClientes">
+            <MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" Size="Size.Medium" />
+        </div>
+        <!-- 3. Proyectos / Taller -->
+        <div class="nav-item" @onclick="IrAProyectos">
+            <MudIcon Icon="@Icons.Material.Outlined.Assignment" Size="Size.Medium" />
+        </div>
+        <!-- 4. Relevamiento Técnico -->
+        <div class="nav-item" @onclick="IrARelevamiento">
+            <MudIcon Icon="@Icons.Material.Outlined.Receipt" Size="Size.Medium" />
+        </div>
+        <!-- 5. Catálogo (Activo aquí) -->
+        <div class="nav-item active" @onclick="IrACatalogo">
+            <MudIcon Icon="@Icons.Material.Filled.Layers" Size="Size.Medium" />
+            <div class="nav-indicator"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .catalogo-container {
+        max-width: 480px;
+        margin: 0 auto;
+        background-color: #f4f6f9;
+        min-height: 100vh;
+        padding-bottom: 90px;
+        box-sizing: border-box;
+        font-family: inherit;
+        position: relative;
+    }
+
+    .header-section {
+        background-color: #181c24;
+        padding: 16px 16px 24px 16px; /* Redujimos el padding superior a 16px */
+        margin-top: 0 !important; /* Forzamos cero margen arriba */
+        border-bottom-left-radius: 24px;
+        border-bottom-right-radius: 24px;
+    }
+
+    .text-muted-header {
+        color: #9ca3af;
+        font-size: 13px;
+    }
+
+    .card-resumen {
+        background-color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+    }
+
+    .categoria-card {
+        background-color: #ffffff !important;
+        border-radius: 16px !important;
+        border: 1px solid #e5e7eb;
+        cursor: pointer;
+        transition: border-color 0.2s;
+    }
+
+    .hover-card:hover {
+        border-color: #94a3b8;
+    }
+
+    .imagen-placeholder {
+        width: 90px;
+        height: 70px;
+        background-color: #f3f4f6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .grid-materiales {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .material-card {
+        background-color: #ffffff !important;
+        border-radius: 14px !important;
+        border: 1px solid #e5e7eb;
+        height: 185px; /* Ajustado ligeramente si necesitabas espacio para la imagen */
+    }
+
+    .material-img-box {
+        width: 100%;
+        height: 90px;
+        background-color: #f8f9fa;
+    }
+
+    .text-dark {
+        color: #111827 !important;
+    }
+
+    .text-muted-custom {
+        color: #6b7280 !important;
+        font-size: 11px;
+    }
+
+    /* Barra inferior fija y centrada */
+    .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: 0 auto;
+        width: 100%;
+        max-width: 480px;
+        height: 60px;
+        background: #181c24;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        z-index: 1000;
+        box-sizing: border-box;
+    }
+
+    .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        cursor: pointer;
+        position: relative;
+        padding: 8px;
+        flex: 1;
+    }
+
+        .nav-item.active {
+            color: #ffffff;
+        }
+
+    .nav-indicator {
+        position: absolute;
+        bottom: 4px;
+        width: 16px;
+        height: 2px;
+        background-color: white;
+        border-radius: 2px;
+    }
+</style>
+
+@code {
+    private bool cargando = true;
+    private bool vistaDetalle = false;
+    private int categoriaSeleccionadaId = 0;
+    private string categoriaSeleccionadaNombre = "";
+
+    private List<CategoriaMaterialResponse> categorias = new();
+    private List<MaterialListadoResponse> materiales = new();
+
+    private IEnumerable<MaterialListadoResponse> MaterialesDeCategoriaActual =>
+        materiales.Where(m =>
+            (m.CategoriaId > 0 && m.CategoriaId == categoriaSeleccionadaId) ||
+            (!string.IsNullOrEmpty(m.NombreCategoria) && m.NombreCategoria.Equals(categoriaSeleccionadaNombre, StringComparison.OrdinalIgnoreCase))
+        );
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        try
+        {
+            cargando = true;
+            categorias = await Http.GetFromJsonAsync<List<CategoriaMaterialResponse>>("api/categorias-material?page=1&pageSize=50") ?? new();
+
+            var response = await Http.GetAsync("api/materiales?page=1&pageSize=100");
+            if (response.IsSuccessStatusCode)
+            {
+                var jsonString = await response.Content.ReadAsStringAsync();
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+                try
+                {
+                    materiales = JsonSerializer.Deserialize<List<MaterialListadoResponse>>(jsonString, options) ?? new();
+                }
+                catch
+                {
+                    var wrapper = JsonSerializer.Deserialize<MaterialPaginadoWrapper>(jsonString, options);
+                    materiales = wrapper?.Items ?? wrapper?.Resultado ?? wrapper?.Data ?? new();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar el catálogo: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void VerMaterialesPorCategoria(int categoriaId, string nombreCategoria)
+    {
+        categoriaSeleccionadaId = categoriaId;
+        categoriaSeleccionadaNombre = nombreCategoria;
+        vistaDetalle = true;
+        StateHasChanged();
+    }
+
+    private void VolverACategorias()
+    {
+        vistaDetalle = false;
+        categoriaSeleccionadaNombre = "";
+        categoriaSeleccionadaId = 0;
+        StateHasChanged();
+    }
+
+    private void IrAHome() => Navigation.NavigateTo("/dashboard");
+    private void IrAClientes() => Navigation.NavigateTo("/clientes");
+    private void IrAProyectos() => Navigation.NavigateTo("/proyectos");
+    private void IrARelevamiento() => Navigation.NavigateTo("/relevamiento");
+    private void IrACatalogo() => Navigation.NavigateTo("/catalogo");
+
+    private class MaterialPaginadoWrapper
+    {
+        public List<MaterialListadoResponse>? Items { get; set; }
+        public List<MaterialListadoResponse>? Resultado { get; set; }
+        public List<MaterialListadoResponse>? Data { get; set; }
+    }
+}

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace TP5_Servicios_API_REST.DTOs.Proyecto.Request
+namespace Carpinteria.API.DTOs.Proyecto.Request
 {
     public class ActualizarProyectoRequest
     {
@@ -16,7 +16,7 @@ namespace TP5_Servicios_API_REST.DTOs.Proyecto.Request
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un estado válido.")]
         public int EstadoId { get; set; }
 
-        public string? EstadoTaller { get; set; } // 'En espera', 'Armado', 'Listo'
+        public int EstadoTallerId { get; set; }
         public string? Observaciones { get; set; }
     }
 }

@@ -179,20 +179,25 @@
 
     <!-- Barra de Navegación Inferior -->
     <div class="bottom-nav">
-        <div class="nav-item active">
+        <!-- 1. Dashboard (Activo aquí) -->
+        <div class="nav-item active" @onclick="IrAHome">
             <MudIcon Icon="@Icons.Material.Filled.Home" Size="Size.Medium" />
             <div class="nav-indicator"></div>
         </div>
-        <div class="nav-item">
+        <!-- 2. Clientes -->
+        <div class="nav-item" @onclick="IrAClientes">
             <MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" Size="Size.Medium" />
         </div>
-        <div class="nav-item">
+        <!-- 3. Proyectos -->
+        <div class="nav-item" @onclick="IrAProyectos">
             <MudIcon Icon="@Icons.Material.Outlined.Assignment" Size="Size.Medium" />
         </div>
-        <div class="nav-item">
+        <!-- 4. Relevamiento Técnico -->
+        <div class="nav-item" @onclick="IrARelevamiento">
             <MudIcon Icon="@Icons.Material.Outlined.Receipt" Size="Size.Medium" />
         </div>
-        <div class="nav-item">
+        <!-- 5. Catálogo -->
+        <div class="nav-item" @onclick="IrACatalogo">
             <MudIcon Icon="@Icons.Material.Outlined.Layers" Size="Size.Medium" />
         </div>
     </div>
@@ -415,7 +420,7 @@
                 proyectosActivos = new();
             }
 
-            // 3. Cargar Notificaciones (Consumiendo api/notificaciones con depuración detallada)
+            // 3. Cargar Notificaciones
             try
             {
                 var requestNotis = new HttpRequestMessage(HttpMethod.Get, "api/notificaciones");
@@ -493,6 +498,31 @@
     private void VerDetalleVisita(int id)
     {
         Navigation.NavigateTo($"/visita-detalle/{id}");
+    }
+
+    private void IrAHome()
+    {
+        Navigation.NavigateTo("/dashboard");
+    }
+
+    private void IrAClientes()
+    {
+        Navigation.NavigateTo("/clientes");
+    }
+
+    private void IrAProyectos()
+    {
+        Navigation.NavigateTo("/proyectos");
+    }
+
+    private void IrARelevamiento()
+    {
+        Navigation.NavigateTo("/relevamiento");
+    }
+
+    private void IrACatalogo()
+    {
+        Navigation.NavigateTo("/catalogo");
     }
 
     public class NotificacionDto

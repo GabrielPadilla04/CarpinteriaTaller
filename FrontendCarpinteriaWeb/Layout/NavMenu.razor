@@ -1,0 +1,72 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold text-white fs-6 text-decoration-none" href="/dashboard">Carpintería Admin</a>
+    </div>
+</div>
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        <!-- Dashboard -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link text-white" href="/dashboard" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu me-2" aria-hidden="true"></span> Dashboard
+            </NavLink>
+        </div>
+
+        <!-- Proyectos -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link text-white" href="/proyectos">
+                <span class="bi bi-kanban-fill-nav-menu me-2" aria-hidden="true"></span> Proyectos
+            </NavLink>
+        </div>
+
+        <!-- Clientes -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link text-white" href="/clientes">
+                <span class="bi bi-people-fill-nav-menu me-2" aria-hidden="true"></span> Clientes
+            </NavLink>
+        </div>
+
+        <!-- Catálogo -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link text-white" href="/catalogo">
+                <span class="bi bi-people-fill-nav-menu me-2" aria-hidden="true"></span> Catálogo
+            </NavLink>
+        </div>
+
+        <!-- Mediciones
+        <div class="nav-item px-3">
+            <NavLink class="nav-link text-white" href="/mediciones">
+                <span class="bi bi-rulers-nav-menu me-2" aria-hidden="true"></span> Mediciones
+            </NavLink>
+        </div> -->
+
+        <!-- Visitas de Entrega
+        <div class="nav-item px-3">
+            <NavLink class="nav-link text-white" href="/visitasentregas">
+                <span class="bi bi-truck-nav-menu me-2" aria-hidden="true"></span> Visitas de Entrega
+            </NavLink>
+        </div> -->
+
+        <!-- Botón de Cerrar Sesión al final del menú -->
+        <div class="nav-item px-3 mt-4">
+            <button class="nav-link text-danger bg-transparent border-0 w-100 text-start" @onclick="CerrarSesion">
+                <span class="bi bi-box-arrow-right me-2" aria-hidden="true"></span> Cerrar Sesión
+            </button>
+        </div>
+    </nav>
+</div>
+
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+@code {
+    private async Task CerrarSesion()
+    {
+        // Limpiamos el token y la sesión
+        await AuthService.LogoutAsync();
+
+        // Redirigimos al Login raíz
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+}

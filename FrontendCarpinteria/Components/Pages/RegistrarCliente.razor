@@ -1,0 +1,108 @@
+﻿@page "/clientes/nuevo"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@using FrontendCarpinteria.Services
+@using FrontendCarpinteria.DTOs.Cliente.Request
+@using FrontendCarpinteria.DTOs.Cliente.Response
+
+<MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
+    <!-- Encabezado con botón de volver -->
+    <div class="d-flex align-center mb-4">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                       OnClick="Volver"
+                       Class="pa-0 mr-3" />
+        <MudText Typo="Typo.h5" Class="fw-bold">Registrar Cliente</MudText>
+    </div>
+
+    <!-- Formulario de Registro -->
+    <MudPaper Elevation="0" Class="pa-4 rounded-lg" Style="border: 1px solid #e2e8f0; background-color: #ffffff;">
+        <EditForm Model="@modelo" OnValidSubmit="GuardarCliente">
+            <DataAnnotationsValidator />
+
+            <!-- Nombre y Apellido -->
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1 d-block">Nombre y Apellido</MudText>
+            <MudTextField @bind-Value="modelo.NombreApellido"
+                          Placeholder="Ingrese nombre y apellido"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="mb-4" />
+            <ValidationMessage For="@(() => modelo.NombreApellido)" />
+
+            <!-- Dirección de la Obra / Notas -->
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1 d-block">Dirección de la Obra / Notas</MudText>
+            <MudTextField @bind-Value="modelo.DireccionObra"
+                          Placeholder="Descripción"
+                          Variant="Variant.Outlined"
+                          Lines="3"
+                          Margin="Margin.Dense"
+                          Class="mb-4" />
+            <ValidationMessage For="@(() => modelo.DireccionObra)" />
+
+            <!-- Teléfono de Contacto -->
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1 d-block">Teléfono de Contacto</MudText>
+            <MudTextField @bind-Value="modelo.Telefono"
+                          Placeholder="+54 2954 123456"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="mb-4" />
+            <ValidationMessage For="@(() => modelo.Telefono)" />
+
+            <!-- Botón de Envío (Registrar) -->
+            <MudButton ButtonType="ButtonType.Submit"
+                       Variant="Variant.Filled"
+                       FullWidth="true"
+                       Disabled="@cargando"
+                       Style="background-color: #1e293b; color: white; border-radius: 8px;"
+                       Class="py-3 mt-4 text-transform-none">
+                @if (cargando)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Registrando...</MudText>
+                }
+                else
+                {
+                    <span>Registrar</span>
+                }
+            </MudButton>
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private CrearClienteRequest modelo = new();
+    private bool cargando = false;
+
+    private async Task GuardarCliente()
+    {
+        cargando = true;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/clientes", modelo);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("¡Cliente registrado con éxito!", Severity.Success);
+                Navigation.NavigateTo("/clientes");
+            }
+            else
+            {
+                var errorMensaje = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error: {errorMensaje}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error de conexión: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/clientes");
+    }
+}

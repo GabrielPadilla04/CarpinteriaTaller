@@ -1,0 +1,158 @@
+﻿@page "/dashboard"
+@using FrontendCarpinteriaWeb.DTOs.Cliente.Response
+@using FrontendCarpinteriaWeb.DTOs.Proyecto.Response
+@using FrontendCarpinteriaWeb.DTOs.VisitaEntrega.Response
+@inject HttpClient Http
+
+<div class="dashboard-container">
+    <div class="dashboard-header mb-4">
+        <h4 class="fw-bold text-dark">Inicio</h4>
+    </div>
+
+    @if (_cargando)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        </div>
+    }
+    else
+    {
+        <!-- Tarjetones de Métricas Superiores -->
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border-0 shadow-sm p-3 rounded-4">
+                    <span class="text-muted small fw-semibold">Obras Activas</span>
+                    <h2 class="fw-bold mt-2 mb-0">@_totalObrasActivas</h2>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border-0 shadow-sm p-3 rounded-4">
+                    <span class="text-muted small fw-semibold">Clientes Totales</span>
+                    <h2 class="fw-bold mt-2 mb-0">@_totalClientes</h2>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border-0 shadow-sm p-3 rounded-4">
+                    <span class="text-muted small fw-semibold">Mediciones Registradas</span>
+                    <h2 class="fw-bold mt-2 mb-0">@_totalMediciones</h2>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card border-0 shadow-sm p-3 rounded-4">
+                    <span class="text-muted small fw-semibold">Visitas de Entrega</span>
+                    <h2 class="fw-bold mt-2 mb-0">@_totalVisitas</h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Listado de Proyectos Recientes y Accesos Rápidos -->
+        <div class="row g-4">
+            <div class="col-12 col-xl-8">
+                <div class="card border-0 shadow-sm p-4 rounded-4 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold m-0">Proyectos Recientes</h5>
+                        <span class="text-muted small">Últimos registrados</span>
+                    </div>
+
+                    @if (_proyectos == null || !_proyectos.Any())
+                    {
+                        <p class="text-muted small">No hay proyectos cargados en el sistema.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Proyecto</th>
+                                        <th>Cliente</th>
+                                        <th>Estado Taller</th>
+                                        <th>Fecha Creación</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var p in _proyectos.Take(5))
+                                    {
+                                        <tr>
+                                            <td class="fw-semibold">@p.NombreProyecto</td>
+                                            <td class="text-muted">@p.NombreCliente</td>
+                                            <td>
+                                                <span class="badge bg-secondary">@p.EstadoTaller</span>
+                                            </td>
+                                            <td class="text-muted small">@p.FechaCreacion.ToString("dd/MM/yyyy")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Columna Derecha con Accesos Rápidos -->
+            <div class="col-12 col-xl-4">
+                <div class="card border-0 shadow-sm p-4 rounded-4 h-100">
+                    <h5 class="fw-bold mb-3">Acciones Rápidas</h5>
+                    <div class="d-flex flex-column gap-2">
+                        <a href="/proyectos" class="btn btn-outline-dark text-start py-2 px-3 rounded-3 d-flex justify-content-between align-items-center text-decoration-none">
+                            <span class="fw-semibold small">Ver todos los Proyectos</span>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                        <a href="/clientes" class="btn btn-outline-dark text-start py-2 px-3 rounded-3 d-flex justify-content-between align-items-center text-decoration-none">
+                            <span class="fw-semibold small">Gestionar Clientes</span>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                        <a href="/mediciones" class="btn btn-outline-dark text-start py-2 px-3 rounded-3 d-flex justify-content-between align-items-center text-decoration-none">
+                            <span class="fw-semibold small">Revisar Mediciones</span>
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _cargando = true;
+    private int _totalObrasActivas = 0;
+    private int _totalClientes = 0;
+    private int _totalMediciones = 0;
+    private int _totalVisitas = 0;
+    private List<ProyectoListadoResponse> _proyectos = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _cargando = true;
+
+            var taskClientes = Http.GetFromJsonAsync<List<ClienteResponse>>("api/clientes");
+            var taskProyectos = Http.GetFromJsonAsync<List<ProyectoListadoResponse>>("api/proyectos");
+            var taskMediciones = Http.GetFromJsonAsync<List<object>>("api/mediciones");
+            var taskVisitas = Http.GetFromJsonAsync<List<VisitaEntregaListadoResponse>>("api/visitasentregas");
+
+            await Task.WhenAll(taskClientes, taskProyectos, taskMediciones, taskVisitas);
+
+            var clientes = await taskClientes;
+            if (clientes != null) _totalClientes = clientes.Count;
+
+            _proyectos = await taskProyectos ?? new();
+            _totalObrasActivas = _proyectos.Count;
+
+            var mediciones = await taskMediciones;
+            if (mediciones != null) _totalMediciones = mediciones.Count;
+
+            var visitas = await taskVisitas;
+            if (visitas != null) _totalVisitas = visitas.Count;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar el dashboard: {ex.Message}");
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+}

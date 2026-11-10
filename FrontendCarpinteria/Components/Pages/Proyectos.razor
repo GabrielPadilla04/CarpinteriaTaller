@@ -1,0 +1,797 @@
+﻿@page "/proyectos"
+@page "/estado-taller"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject AuthService AuthService
+@using FrontendCarpinteria.DTOs.Proyecto.Request
+@using FrontendCarpinteria.DTOs.Proyecto.Response
+@using FrontendCarpinteria.DTOs.Cliente.Response
+@using FrontendCarpinteria.DTOs.Usuario.Output
+
+<div class="taller-container">
+    <!-- Encabezado Oscuro -->
+    <div class="header-section">
+        <div class="d-flex align-center justify-space-between mb-1">
+            <div class="d-flex align-center">
+                <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                               OnClick="VolverAlDashboard"
+                               Class="pa-0 mr-3 text-white" />
+                <MudText Typo="Typo.h5" Class="fw-bold text-white">Estado del Taller</MudText>
+            </div>
+        </div>
+        <MudText Typo="Typo.caption" Class="text-muted-header mb-4 d-block">
+            Seguimiento de amoblamientos en producción
+        </MudText>
+
+        <!-- Tarjeta Blanca de Resumen -->
+        <MudPaper Elevation="0" Class="pa-4 rounded-xl card-resumen">
+            <MudText Typo="Typo.subtitle2" Class="fw-bold text-dark mb-1">Progreso de Estructuras</MudText>
+            <MudText Typo="Typo.caption" Class="text-muted-custom mb-3 d-block">Progreso actual</MudText>
+
+            <div class="d-flex gap-2">
+                <div class="resumen-box flex-1 pa-2 rounded-lg text-center">
+                    <div class="d-flex align-center justify-center gap-1 text-muted-custom mb-1">
+                        <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" />
+                        <span style="font-size: 11px;">En espera</span>
+                    </div>
+                    <MudText Typo="Typo.h6" Class="fw-bold text-dark">@ContarPorEstado("En espera")</MudText>
+                </div>
+                <div class="resumen-box flex-1 pa-2 rounded-lg text-center">
+                    <div class="d-flex align-center justify-center gap-1 text-muted-custom mb-1" style="color: #f59e0b;">
+                        <MudIcon Icon="@Icons.Material.Filled.Timer" Size="Size.Small" />
+                        <span style="font-size: 11px;">Cortes</span>
+                    </div>
+                    <MudText Typo="Typo.h6" Class="fw-bold text-dark">@ContarPorEstado("En proceso de cortes")</MudText>
+                </div>
+                <div class="resumen-box flex-1 pa-2 rounded-lg text-center">
+                    <div class="d-flex align-center justify-center gap-1 text-muted-custom mb-1" style="color: #10b981;">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" />
+                        <span style="font-size: 11px;">Finalizado</span>
+                    </div>
+                    <MudText Typo="Typo.h6" Class="fw-bold text-dark">@ContarPorEstado("Finalizado")</MudText>
+                </div>
+            </div>
+        </MudPaper>
+    </div>
+
+    <!-- Filtro de Pestañas por Estados de Taller -->
+    <div class="px-4 mt-4">
+        <div class="tabs-container d-flex gap-2">
+            <div class="tab-pill @(filtroEstado == "En espera" ? "active" : "")" @onclick='() => FiltrarEstado("En espera")'>
+                En espera <span class="badge">@ContarPorEstado("En espera")</span>
+            </div>
+            <div class="tab-pill @(filtroEstado == "En proceso de cortes" ? "active" : "")" @onclick='() => FiltrarEstado("En proceso de cortes")'>
+                Cortes <span class="badge">@ContarPorEstado("En proceso de cortes")</span>
+            </div>
+            <div class="tab-pill @(filtroEstado == "En proceso de cantos / bordes" ? "active" : "")" @onclick='() => FiltrarEstado("En proceso de cantos / bordes")'>
+                Cantos <span class="badge">@ContarPorEstado("En proceso de cantos / bordes")</span>
+            </div>
+            <div class="tab-pill @(filtroEstado == "En proceso de armado / premontaje" ? "active" : "")" @onclick='() => FiltrarEstado("En proceso de armado / premontaje")'>
+                Armado <span class="badge">@ContarPorEstado("En proceso de armado / premontaje")</span>
+            </div>
+            <div class="tab-pill @(filtroEstado == "Listo para despacho / Retiro" ? "active" : "")" @onclick='() => FiltrarEstado("Listo para despacho / Retiro")'>
+                Listo <span class="badge">@ContarPorEstado("Listo para despacho / Retiro")</span>
+            </div>
+            <div class="tab-pill @(filtroEstado == "En proceso de instalación" ? "active" : "")" @onclick='() => FiltrarEstado("En proceso de instalación")'>
+                Instalación <span class="badge">@ContarPorEstado("En proceso de instalación")</span>
+            </div>
+            <div class="tab-pill @(filtroEstado == "Finalizado" ? "active" : "")" @onclick='() => FiltrarEstado("Finalizado")'>
+                Finalizado <span class="badge">@ContarPorEstado("Finalizado")</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Listado de Proyectos -->
+    <div class="listado-section px-4 mt-3">
+        @if (cargando)
+        {
+            <div class="d-flex justify-center my-6">
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Dark" />
+            </div>
+        }
+        else if (proyectosFiltrados == null || !proyectosFiltrados.Any())
+        {
+            <MudText Typo="Typo.body2" Class="text-muted text-center py-4">No hay proyectos en este estado.</MudText>
+        }
+        else
+        {
+            <MudStack Spacing="3">
+                @foreach (var proj in proyectosFiltrados)
+                {
+                    <MudPaper Elevation="0" Class="pa-4 proyecto-card hover-card" @onclick="() => AbrirModalEditar(proj)">
+                        <div class="d-flex align-center justify-space-between mb-2">
+                            <div class="d-flex align-center gap-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Bolt" Size="Size.Small" Style="color: #4f46e5;" />
+                                <MudText Typo="Typo.subtitle2" Class="fw-bold text-dark">@proj.NombreProyecto</MudText>
+                            </div>
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Class="estado-chip">@(string.IsNullOrEmpty(proj.EstadoTaller) ? "En espera" : proj.EstadoTaller)</MudChip>
+                        </div>
+
+                        <MudText Typo="Typo.caption" Class="text-muted-custom mb-3 d-block">
+                            Cliente: @(string.IsNullOrEmpty(proj.NombreCliente) ? "Sin asignar" : proj.NombreCliente)
+                        </MudText>
+
+                        <!-- Indicador visual según estado taller -->
+                        <div class="progress-bar-bg mb-3">
+                            <div class="progress-bar-fill" style="width: @ObtenerPorcentajeProgreso(proj.EstadoTaller)%;"></div>
+                        </div>
+
+                        <div class="d-flex justify-space-between align-center">
+                            <div class="d-flex align-center gap-1 text-muted-custom">
+                                <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" />
+                                <span style="font-size: 11px;">@proj.FechaCreacion.ToString("dd MMM")</span>
+                            </div>
+                            <div class="d-flex align-center gap-1 text-muted-custom">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                                <span style="font-size: 11px;">@proj.NombreResponsable</span>
+                            </div>
+                        </div>
+                    </MudPaper>
+                }
+            </MudStack>
+        }
+    </div>
+
+    <!-- Botón Flotante Inferior -->
+    <div class="action-footer px-4">
+        <MudButton Variant="Variant.Filled"
+                   FullWidth="true"
+                   Class="btn-nueva-orden"
+                   OnClick="AbrirModalNuevo">
+            Nueva Orden de Trabajo
+        </MudButton>
+    </div>
+
+    <!-- Barra de Navegación Inferior Centrada (5 Íconos) -->
+    <div class="bottom-nav">
+        <!-- 1. Dashboard -->
+        <div class="nav-item" @onclick="IrAHome">
+            <MudIcon Icon="@Icons.Material.Filled.Home" Size="Size.Medium" />
+        </div>
+        <!-- 2. Clientes -->
+        <div class="nav-item" @onclick="IrAClientes">
+            <MudIcon Icon="@Icons.Material.Outlined.CalendarMonth" Size="Size.Medium" />
+        </div>
+        <!-- 3. Proyectos / Taller (Activo aquí) -->
+        <div class="nav-item active" @onclick="IrAProyectos">
+            <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Medium" />
+            <div class="nav-indicator"></div>
+        </div>
+        <!-- 4. Relevamiento Técnico -->
+        <div class="nav-item" @onclick="IrARelevamiento">
+            <MudIcon Icon="@Icons.Material.Outlined.Receipt" Size="Size.Medium" />
+        </div>
+        <!-- 5. Catálogo de Materiales -->
+        <div class="nav-item" @onclick="IrACatalogo">
+            <MudIcon Icon="@Icons.Material.Outlined.Layers" Size="Size.Medium" />
+        </div>
+    </div>
+</div>
+
+<!-- Modal Desplegable (Bottom Sheet) -->
+@if (mostrarModal)
+{
+    <div class="modal-backdrop">
+        <div class="modal-card pa-5">
+            <div class="d-flex justify-space-between align-center mb-3">
+                <MudText Typo="Typo.h6" Class="fw-bold text-dark">@(esEdicion ? "Editar Orden de Trabajo" : "Nueva Orden de Trabajo")</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="CerrarModal" Size="Size.Small" />
+            </div>
+
+            @if (esEdicion)
+            {
+                <EditForm Model="@modeloEdicion" OnValidSubmit="GuardarEdicionProyecto">
+                    <DataAnnotationsValidator />
+
+                    <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Nombre del Proyecto / Amoblamiento</MudText>
+                    <MudTextField @bind-Value="modeloEdicion.NombreProyecto" Placeholder="Ej. Bajo Mesada y Alacena" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+
+                    <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Cliente Asignado</MudText>
+                    <MudAutocomplete T="ClienteResponse"
+                                     Value="clienteSeleccionado"
+                                     ValueChanged="OnClienteSeleccionadoChangedEdicion"
+                                     SearchFunc="BuscarClientes"
+                                     ToStringFunc="@(c => c?.NombreApellido ?? string.Empty)"
+                                     Placeholder="Escribe para buscar cliente..."
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     ResetValueOnEmptyText="true"
+                                     CoerceText="false"
+                                     MinChars="0"
+                                     OpenOnFocus="true"
+                                     PopoverClass="z-modal-popover"
+                                     AdornmentIcon="@Icons.Material.Filled.Search"
+                                     Class="mb-3" />
+
+                    <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Responsable (Usuario)</MudText>
+                    <MudAutocomplete T="UsuarioDtoOutput"
+                                     Value="usuarioSeleccionado"
+                                     ValueChanged="OnUsuarioSeleccionadoChangedEdicion"
+                                     SearchFunc="BuscarUsuarios"
+                                     ToStringFunc="@(u => u is not null ? $"{u.Nombre} {u.Apellido}".Trim() : string.Empty)"
+                                     Placeholder="Escribe para buscar responsable..."
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     ResetValueOnEmptyText="true"
+                                     CoerceText="false"
+                                     MinChars="0"
+                                     OpenOnFocus="true"
+                                     PopoverClass="z-modal-popover"
+                                     AdornmentIcon="@Icons.Material.Filled.PersonSearch"
+                                     Class="mb-3" />
+
+                    <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Estado de Taller</MudText>
+                    <MudSelect T="int" @bind-Value="modeloEdicion.EstadoTallerId" Placeholder="Seleccione estado de taller" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" PopoverClass="z-modal-popover">
+                        <MudSelectItem Value="1">1 - En espera</MudSelectItem>
+                        <MudSelectItem Value="2">2 - En proceso de cortes</MudSelectItem>
+                        <MudSelectItem Value="3">3 - En proceso de cantos / bordes</MudSelectItem>
+                        <MudSelectItem Value="4">4 - En proceso de armado / premontaje</MudSelectItem>
+                        <MudSelectItem Value="5">5 - Listo para despacho / Retiro</MudSelectItem>
+                        <MudSelectItem Value="6">6 - En proceso de instalación</MudSelectItem>
+                        <MudSelectItem Value="7">7 - Finalizado</MudSelectItem>
+                    </MudSelect>
+
+                    <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Observaciones / Notas</MudText>
+                    <MudTextField @bind-Value="modeloEdicion.Observaciones" Placeholder="Detalles adicionales..." Variant="Variant.Outlined" Lines="2" Margin="Margin.Dense" Class="mb-4" />
+
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" FullWidth="true" Class="btn-guardar py-3">
+                        Guardar Cambios
+                    </MudButton>
+                </EditForm>
+            }
+            else
+            {
+                <EditForm Model="@modeloNuevo" OnValidSubmit="GuardarNuevoProyecto">
+                    <DataAnnotationsValidator />
+
+                    <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Nombre del Proyecto / Amoblamiento</MudText>
+                    <MudTextField @bind-Value="modeloNuevo.NombreProyecto" Placeholder="Ej. Bajo Mesada y Alacena" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+
+                    <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Cliente Asignado</MudText>
+                    <MudAutocomplete T="ClienteResponse"
+                                     Value="clienteSeleccionado"
+                                     ValueChanged="OnClienteSeleccionadoChangedNuevo"
+                                     SearchFunc="BuscarClientes"
+                                     ToStringFunc="@(c => c?.NombreApellido ?? string.Empty)"
+                                     Placeholder="Escribe para buscar cliente..."
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     ResetValueOnEmptyText="true"
+                                     CoerceText="false"
+                                     MinChars="0"
+                                     OpenOnFocus="true"
+                                     PopoverClass="z-modal-popover"
+                                     AdornmentIcon="@Icons.Material.Filled.Search"
+                                     Class="mb-3" />
+
+                    <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Responsable (Usuario)</MudText>
+                    <MudAutocomplete T="UsuarioDtoOutput"
+                                     Value="usuarioSeleccionado"
+                                     ValueChanged="OnUsuarioSeleccionadoChangedNuevo"
+                                     SearchFunc="BuscarUsuarios"
+                                     ToStringFunc="@(u => u is not null ? $"{u.Nombre} {u.Apellido}".Trim() : string.Empty)"
+                                     Placeholder="Escribe para buscar responsable..."
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     ResetValueOnEmptyText="true"
+                                     CoerceText="false"
+                                     MinChars="0"
+                                     OpenOnFocus="true"
+                                     PopoverClass="z-modal-popover"
+                                     AdornmentIcon="@Icons.Material.Filled.PersonSearch"
+                                     Class="mb-3" />
+
+                    <MudText Typo="Typo.caption" Class="text-muted-custom mb-1 d-block">Observaciones / Notas</MudText>
+                    <MudTextField @bind-Value="modeloNuevo.Observaciones" Placeholder="Detalles de materiales o medidas" Variant="Variant.Outlined" Lines="2" Margin="Margin.Dense" Class="mb-4" />
+
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" FullWidth="true" Class="btn-guardar py-3">
+                        Crear Orden
+                    </MudButton>
+                </EditForm>
+            }
+        </div>
+    </div>
+}
+
+<style>
+    .taller-container {
+        max-width: 480px;
+        margin: 0 auto;
+        background-color: #f4f6f9;
+        min-height: 100vh;
+        padding-bottom: 120px;
+        box-sizing: border-box;
+        font-family: inherit;
+        position: relative;
+    }
+
+    .header-section {
+        background-color: #181c24;
+        padding: 20px 16px 30px 16px;
+        border-bottom-left-radius: 24px;
+        border-bottom-right-radius: 24px;
+    }
+
+    .text-muted-header {
+        color: #9ca3af;
+        font-size: 13px;
+    }
+
+    .card-resumen {
+        background-color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+    }
+
+    .resumen-box {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+    }
+
+    .tabs-container {
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+
+    .tab-pill {
+        background-color: #e5e7eb;
+        color: #4b5563;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+
+        .tab-pill.active {
+            background-color: #181c24;
+            color: white;
+        }
+
+        .tab-pill .badge {
+            background-color: rgba(255,255,255,0.2);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+        }
+
+    .proyecto-card {
+        background-color: #ffffff !important;
+        border-radius: 16px !important;
+        border: 1px solid #e5e7eb;
+        cursor: pointer;
+    }
+
+    .hover-card:hover {
+        border-color: #94a3b8;
+    }
+
+    .estado-chip {
+        background-color: #f3f4f6 !important;
+        color: #374151 !important;
+        font-weight: 600;
+    }
+
+    .progress-bar-bg {
+        background-color: #e5e7eb;
+        height: 6px;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        background-color: #181c24;
+        height: 100%;
+        border-radius: 3px;
+    }
+
+    .action-footer {
+        position: fixed;
+        bottom: 65px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 480px;
+        z-index: 900;
+        background: linear-gradient(to top, #f4f6f9 80%, transparent);
+        padding-top: 10px;
+        box-sizing: border-box;
+    }
+
+    .btn-nueva-orden {
+        background-color: #181c24 !important;
+        color: white !important;
+        border-radius: 16px !important;
+        text-transform: none !important;
+        font-weight: 600 !important;
+        padding: 12px 0 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .modal-card {
+        background-color: white;
+        width: 100%;
+        max-width: 480px;
+        max-height: 85vh;
+        overflow-y: visible !important;
+        border-top-left-radius: 24px;
+        border-top-right-radius: 24px;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+        animation: slideUp 0.3s ease-out;
+    }
+
+    .z-modal-popover {
+        z-index: 10000 !important;
+    }
+
+    .btn-guardar {
+        background-color: #181c24 !important;
+        color: white !important;
+        border-radius: 12px !important;
+        text-transform: none !important;
+        font-weight: 600 !important;
+    }
+
+    .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin: 0 auto;
+        width: 100%;
+        max-width: 480px;
+        height: 60px;
+        background: #181c24;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        z-index: 1000;
+        box-sizing: border-box;
+    }
+
+    .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        cursor: pointer;
+        position: relative;
+        padding: 8px;
+        flex: 1;
+    }
+
+        .nav-item.active {
+            color: #ffffff;
+        }
+
+    .nav-indicator {
+        position: absolute;
+        bottom: 4px;
+        width: 16px;
+        height: 2px;
+        background-color: white;
+        border-radius: 2px;
+    }
+
+    @@keyframes slideUp {
+        from {
+            transform: translateY(100%);
+        }
+
+        to {
+            transform: translateY(0);
+        }
+    }
+</style>
+
+@code {
+    private List<ProyectoListadoResponse> proyectos = new();
+    private List<ProyectoListadoResponse> proyectosFiltrados = new();
+    private List<ClienteResponse> listaClientes = new();
+    private List<UsuarioDtoOutput> listaUsuarios = new();
+
+    private ClienteResponse? clienteSeleccionado;
+    private UsuarioDtoOutput? usuarioSeleccionado;
+
+    private bool cargando = true;
+    private string filtroEstado = "En espera";
+
+    private bool mostrarModal = false;
+    private bool esEdicion = false;
+    private int proyectoIdActual = 0;
+
+    private CrearProyectoRequest modeloNuevo = new();
+    private ActualizarProyectoRequest modeloEdicion = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProyectos();
+        await CargarClientes();
+        await CargarUsuarios();
+    }
+
+    private async Task CargarProyectos()
+    {
+        try
+        {
+            cargando = true;
+            proyectos = await Http.GetFromJsonAsync<List<ProyectoListadoResponse>>("api/proyectos") ?? new();
+            FiltrarEstado(filtroEstado);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar proyectos: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CargarClientes()
+    {
+        try
+        {
+            listaClientes = await Http.GetFromJsonAsync<List<ClienteResponse>>("api/clientes?page=1&pageSize=100") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar clientes: {ex.Message}");
+        }
+    }
+
+    private async Task CargarUsuarios()
+    {
+        try
+        {
+            var token = await AuthService.ObtenerTokenAsync();
+            using var request = new HttpRequestMessage(HttpMethod.Get, "api/usuarios");
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+
+            var response = await Http.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                listaUsuarios = await response.Content.ReadFromJsonAsync<List<UsuarioDtoOutput>>() ?? new();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error al cargar usuarios ({response.StatusCode}): {errorContent}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Excepción usuarios: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task<IEnumerable<ClienteResponse>> BuscarClientes(string value, CancellationToken cancellationToken)
+    {
+        await Task.CompletedTask;
+        if (string.IsNullOrWhiteSpace(value))
+            return listaClientes;
+
+        return listaClientes.Where(c => c.NombreApellido != null && c.NombreApellido.Contains(value, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task<IEnumerable<UsuarioDtoOutput>> BuscarUsuarios(string value, CancellationToken cancellationToken)
+    {
+        await Task.CompletedTask;
+        if (string.IsNullOrWhiteSpace(value))
+            return listaUsuarios;
+
+        return listaUsuarios.Where(u =>
+            (!string.IsNullOrEmpty(u.Nombre) && u.Nombre.Contains(value, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(u.Apellido) && u.Apellido.Contains(value, StringComparison.OrdinalIgnoreCase))
+        );
+    }
+
+    private void OnClienteSeleccionadoChangedNuevo(ClienteResponse cliente)
+    {
+        clienteSeleccionado = cliente;
+        modeloNuevo.ClienteId = cliente?.ClienteId ?? 0;
+    }
+
+    private void OnClienteSeleccionadoChangedEdicion(ClienteResponse cliente)
+    {
+        clienteSeleccionado = cliente;
+        modeloEdicion.ClienteId = cliente?.ClienteId ?? 0;
+    }
+
+    private void OnUsuarioSeleccionadoChangedNuevo(UsuarioDtoOutput usuario)
+    {
+        usuarioSeleccionado = usuario;
+        modeloNuevo.UsuarioId = usuario?.UsuarioId ?? 0;
+    }
+
+    private void OnUsuarioSeleccionadoChangedEdicion(UsuarioDtoOutput usuario)
+    {
+        usuarioSeleccionado = usuario;
+        modeloEdicion.UsuarioId = usuario?.UsuarioId ?? 0;
+    }
+
+    private int ContarPorEstado(string estadoNombre)
+    {
+        if (estadoNombre == "En espera")
+            return proyectos.Count(p => string.IsNullOrEmpty(p.EstadoTaller) || p.EstadoTaller.Equals("En espera", StringComparison.OrdinalIgnoreCase));
+
+        return proyectos.Count(p => p.EstadoTaller != null && p.EstadoTaller.Equals(estadoNombre, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void FiltrarEstado(string estado)
+    {
+        filtroEstado = estado;
+        if (estado == "En espera")
+            proyectosFiltrados = proyectos.Where(p => string.IsNullOrEmpty(p.EstadoTaller) || p.EstadoTaller.Equals("En espera", StringComparison.OrdinalIgnoreCase)).ToList();
+        else
+            proyectosFiltrados = proyectos.Where(p => p.EstadoTaller != null && p.EstadoTaller.Equals(estado, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    private int ObtenerPorcentajeProgreso(string? estado)
+    {
+        return estado switch
+        {
+            "En proceso de cortes" => 20,
+            "En proceso de cantos / bordes" => 40,
+            "En proceso de armado / premontaje" => 60,
+            "Listo para despacho / Retiro" => 80,
+            "En proceso de instalación" => 90,
+            "Finalizado" => 100,
+            _ => 10
+        };
+    }
+
+    private int ObtenerIdTallerPorNombre(string? nombre)
+    {
+        return nombre switch
+        {
+            "En proceso de cortes" => 2,
+            "En proceso de cantos / bordes" => 3,
+            "En proceso de armado / premontaje" => 4,
+            "Listo para despacho / Retiro" => 5,
+            "En proceso de instalación" => 6,
+            "Finalizado" => 7,
+            _ => 1
+        };
+    }
+
+    private void AbrirModalNuevo()
+    {
+        modeloNuevo = new CrearProyectoRequest
+        {
+            EstadoId = 1
+        };
+        clienteSeleccionado = null;
+        usuarioSeleccionado = null;
+        esEdicion = false;
+        proyectoIdActual = 0;
+        mostrarModal = true;
+    }
+
+    private void AbrirModalEditar(ProyectoListadoResponse proj)
+    {
+        string estadoActual = string.IsNullOrEmpty(proj.EstadoTaller) ? "En espera" : proj.EstadoTaller;
+
+        modeloEdicion = new ActualizarProyectoRequest
+        {
+            NombreProyecto = proj.NombreProyecto,
+            EstadoTallerId = ObtenerIdTallerPorNombre(estadoActual),
+            EstadoId = 1
+        };
+
+        clienteSeleccionado = listaClientes.FirstOrDefault(c => c.NombreApellido == proj.NombreCliente);
+        if (clienteSeleccionado is not null)
+        {
+            modeloEdicion.ClienteId = clienteSeleccionado.ClienteId;
+        }
+
+        usuarioSeleccionado = listaUsuarios.FirstOrDefault(u => $"{u.Nombre} {u.Apellido}".Trim() == proj.NombreResponsable);
+        if (usuarioSeleccionado is not null)
+        {
+            modeloEdicion.UsuarioId = usuarioSeleccionado.UsuarioId;
+        }
+
+        esEdicion = true;
+        proyectoIdActual = proj.ProyectoId;
+        mostrarModal = true;
+    }
+
+    private void CerrarModal() => mostrarModal = false;
+
+    private async Task GuardarNuevoProyecto()
+    {
+        if (modeloNuevo.ClienteId <= 0)
+        {
+            Snackbar.Add("Debe seleccionar un cliente válido.", Severity.Warning);
+            return;
+        }
+        if (modeloNuevo.UsuarioId <= 0)
+        {
+            Snackbar.Add("Debe seleccionar un usuario responsable.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/proyectos", modeloNuevo);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("¡Orden de trabajo creada con éxito!", Severity.Success);
+                mostrarModal = false;
+                await CargarProyectos();
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error: {err}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error de conexión: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task GuardarEdicionProyecto()
+    {
+        if (modeloEdicion.ClienteId <= 0)
+        {
+            Snackbar.Add("Debe seleccionar un cliente válido.", Severity.Warning);
+            return;
+        }
+        if (modeloEdicion.UsuarioId <= 0)
+        {
+            Snackbar.Add("Debe seleccionar un usuario responsable.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"api/proyectos/{proyectoIdActual}", modeloEdicion);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("¡Orden de trabajo actualizada!", Severity.Success);
+                mostrarModal = false;
+                await CargarProyectos();
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error: {err}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error de conexión: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void VolverAlDashboard() => Navigation.NavigateTo("/dashboard");
+    private void IrAHome() => Navigation.NavigateTo("/dashboard");
+    private void IrAClientes() => Navigation.NavigateTo("/clientes");
+    private void IrAProyectos() => Navigation.NavigateTo("/proyectos");
+    private void IrARelevamiento() => Navigation.NavigateTo("/relevamiento");
+    private void IrACatalogo() => Navigation.NavigateTo("/catalogo");
+}

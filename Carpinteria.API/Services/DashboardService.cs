@@ -33,13 +33,12 @@ namespace TP5_Servicios_API_REST.Services
                 int usuarioId = ObtenerUsuarioIdActual();
 
                 var usuario = await _context.Usuarios
-                    .Include(u => u.Roles) // Navegación correcta hacia la entidad Roles
+                    .Include(u => u.Roles)
                     .Where(u => u.UsuarioId == usuarioId)
                     .Select(u => new UsuarioPerfilDto
                     {
-                        // Unimos Nombre y Apellido para que aparezca completo arriba
                         Nombre = $"{u.Nombre} {u.Apellido}".Trim(),
-                        Rol = u.Roles != null ? u.Roles.NombreRoles : "Usuario" // Usamos NombreRoles
+                        Rol = u.Roles != null ? u.Roles.NombreRoles : "Usuario"
                     })
                     .FirstOrDefaultAsync();
 
@@ -60,11 +59,12 @@ namespace TP5_Servicios_API_REST.Services
 
                 return await _context.VisitasEntregas
                     .Where(v => v.UsuarioId == usuarioId && v.Fecha == hoy)
+                    .Include(v => v.Proyecto)
                     .Select(v => new VisitaDto
                     {
                         Id = v.VisitaId,
-                        Titulo = $"{v.TipoEvento} - Proyecto #{v.ProyectoId}",
-                        Horario = $"{v.HoraInicio:hh\\:mm} - {v.HoraFin:hh\\:mm}"
+                        Titulo = $"{v.TipoEvento} - {(v.Proyecto != null ? v.Proyecto.NombreProyecto : $"Proyecto #{v.ProyectoId}")}",
+                        Horario = $"{v.HoraInicio:HH:mm} a {v.HoraFin:HH:mm}"
                     })
                     .ToListAsync();
             }

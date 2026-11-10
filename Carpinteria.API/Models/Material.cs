@@ -29,5 +29,8 @@ namespace TP5_Servicios_API_REST.Models
 
         [Column("espesor_disponible")]
         public string? EspesorDisponible { get; set; }
+        
+        [Column("imagen_url")]
+        public string? ImagenUrl { get; set; } // <--- NUEVA PROPIEDAD
     }
 }

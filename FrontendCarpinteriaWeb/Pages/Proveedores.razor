@@ -1,0 +1,100 @@
+﻿@page "/proveedores"
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h4" Class="mb-4">Gestión de Proveedores</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Class="mb-4" OnClick="AbrirModalNuevo">
+    Nuevo Proveedor
+</MudButton>
+
+@if (proveedores == null)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudTable Items="proveedores" Filter="new Func<ProveedorDto, bool>(CargarFiltro)" Hover="true" Breakpoint="Breakpoint.Sm">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Proveedores Activos</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="searchString" Placeholder="Buscar proveedor..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>ID</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Contacto</MudTh>
+            <MudTh>Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="ID">@context.Id</MudTd>
+            <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
+            <MudTd DataLabel="Contacto">@context.Contacto</MudTd>
+            <MudTd DataLabel="Acciones">
+                <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" OnClick="() => EliminarProveedor(context.Id)">Dar de baja</MudButton>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private List<ProveedorDto>? proveedores;
+    private string searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProveedores();
+    }
+
+    private async Task CargarProveedores()
+    {
+        try
+        {
+            proveedores = await Http.GetFromJsonAsync<List<ProveedorDto>>("api/proveedores");
+        }
+        catch
+        {
+            Snackbar.Add("Error al cargar los proveedores del servidor.", Severity.Error);
+        }
+    }
+
+    private bool CargarFiltro(ProveedorDto prov)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (prov.Nombre.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (prov.Contacto.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    private async Task EliminarProveedor(int id)
+    {
+        var response = await Http.DeleteAsync($"api/proveedores/{id}");
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Proveedor dado de baja correctamente.", Severity.Success);
+            await CargarProveedores();
+        }
+        else
+        {
+            Snackbar.Add("No se pudo completar la operación.", Severity.Error);
+        }
+    }
+
+    private void AbrirModalNuevo()
+    {
+        // Aquí puedes desplegar un MudDialog para el alta
+    }
+
+    public class ProveedorDto
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public string Contacto { get; set; } = string.Empty;
+    }
+}

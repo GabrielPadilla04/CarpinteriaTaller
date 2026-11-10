@@ -1,0 +1,168 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@using FrontendCarpinteriaWeb.DTOs.Notificacion.Response
+@inject HttpClient Http
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@if (EsPantallaEspecial)
+{
+    <div class="login-layout-wrapper">
+        @Body
+    </div>
+}
+else
+{
+    <MudLayout>
+        <!-- Barra Superior -->
+        <MudAppBar Elevation="1" Class="carpentry-appbar" Dense="true">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+            <MudText Typo="Typo.subtitle1" Class="fw-bold ms-2">Sistema de Carpintería - Panel Admin</MudText>
+
+            <MudSpacer />
+
+            <!-- Buscador central superior -->
+            <div class="d-none d-md-flex align-center mx-4" style="width: 300px;">
+                <MudTextField T="string" Placeholder="Buscar..." Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Class="bg-white rounded" />
+            </div>
+
+            <MudBadge Content="@_notificacionesNoLeidas" Color="Color.Error" Overlap="true" Class="mx-2">
+                <MudIconButton Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" OnClick="@ToggleRightDrawer" />
+            </MudBadge>
+
+            <!-- Perfil de Usuario en AppBar -->
+            <div class="d-flex align-center ms-3">
+                <MudAvatar Size="Size.Small" Color="Color.Dark">A</MudAvatar>
+                <MudText Typo="Typo.body2" Class="ms-2 fw-semibold d-none d-sm-block">Admin</MudText>
+            </div>
+        </MudAppBar>
+
+        <!-- Menú de Navegación Lateral Izquierdo -->
+        <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="1" Class="carpentry-drawer">
+            <NavMenu />
+        </MudDrawer>
+
+        <!-- Panel Derecho de Notificaciones Dinámicas -->
+        <MudDrawer @bind-Open="_rightDrawerOpen" Anchor="Anchor.Right" Elevation="1" Variant="DrawerVariant.Persistent" Width="320px" Class="carpentry-right-drawer pa-4">
+            <div class="d-flex justify-space-between align-center mb-3">
+                <MudText Typo="Typo.subtitle1" Class="fw-bold">Notificaciones</MudText>
+            </div>
+
+            <div class="mb-4">
+                @if (_notificaciones == null || !_notificaciones.Any())
+                {
+                    <MudText Typo="Typo.body2" Class="text-muted">No hay notificaciones recientes.</MudText>
+                }
+                else
+                {
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var noti in _notificaciones)
+                        {
+                            <div class="border-bottom pb-2">
+                                <MudText Typo="Typo.body2" Class="fw-semibold text-dark">@noti.Titulo</MudText>
+                                <MudText Typo="Typo.body2" Class="text-muted small">@noti.Mensaje</MudText>
+                                <MudText Typo="Typo.caption" Class="text-muted">@noti.FechaHora.ToString("dd/MM/yyyy HH:mm")</MudText>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </MudDrawer>
+
+        <!-- Contenido Principal -->
+        <MudMainContent Class="carpentry-main-content">
+            <MudContainer MaxWidth="MaxWidth.Large" Class="my-4">
+                @Body
+            </MudContainer>
+        </MudMainContent>
+    </MudLayout>
+}
+
+<style>
+    body, html {
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+    }
+
+    .login-layout-wrapper {
+        width: 100vw;
+        min-height: 100vh;
+        position: relative;
+    }
+
+    .carpentry-appbar {
+        background-color: #1e2028 !important;
+        color: white !important;
+    }
+
+    /* Drawer izquierdo con el tono oscuro solicitado y textos en blanco */
+    .carpentry-drawer {
+        background-color: #1e2028 !important;
+        border-right: 1px solid #2d3139;
+        color: #ffffff !important;
+    }
+
+        /* Forzar texto e iconos en blanco y un gris claro para hover */
+        .carpentry-drawer .mud-nav-link,
+        .carpentry-drawer .mud-nav-link .mud-typography,
+        .carpentry-drawer .mud-nav-link .mud-icon-root {
+            color: #e2e8f0 !important;
+        }
+
+            .carpentry-drawer .mud-nav-link:hover {
+                background-color: rgba(255, 255, 255, 0.08) !important;
+                color: #ffffff !important;
+            }
+
+    .carpentry-right-drawer {
+        background-color: #f8f9fa !important;
+        border-left: 1px solid #e0e0e0;
+    }
+
+    .carpentry-main-content {
+        background-color: #eef2f6;
+        min-height: 100vh;
+    }
+</style>
+
+@code {
+    private bool _drawerOpen = true;
+    private bool _rightDrawerOpen = true;
+
+    private List<NotificacionResponse> _notificaciones = new();
+    private int _notificacionesNoLeidas = 0;
+
+    private bool EsPantallaEspecial =>
+        Navigation.Uri.EndsWith("/") ||
+        Navigation.Uri.Contains("/acceso-restringido") ||
+        Navigation.Uri.Contains("/login") ||
+        Navigation.Uri.Contains("/register") ||
+        Navigation.Uri.Contains("/forgot-password");
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _notificaciones = await Http.GetFromJsonAsync<List<NotificacionResponse>>("api/notificaciones") ?? new();
+            _notificacionesNoLeidas = _notificaciones.Count(n => !n.Leido);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar notificaciones en el Layout: {ex.Message}");
+        }
+    }
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void ToggleRightDrawer()
+    {
+        _rightDrawerOpen = !_rightDrawerOpen;
+    }
+}

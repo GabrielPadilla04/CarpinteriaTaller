@@ -1,0 +1,133 @@
+﻿@page "/clientes"
+@using FrontendCarpinteriaWeb.DTOs.Cliente.Response
+@inject HttpClient Http
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<div class="container-fluid py-4">
+    <!-- Encabezado y Acción -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold text-dark m-0">Gestión de Clientes</h4>
+            <p class="text-muted small m-0">Listado general de clientes y ubicación de sus obras</p>
+        </div>
+        <button class="btn btn-dark d-flex align-items-center gap-2 px-3 py-2 rounded-3 shadow-sm" @onclick="() => AbrirModalCliente()">
+            <i class="bi bi-person-plus-fill"></i>
+            <span class="fw-semibold small">Agregar Cliente</span>
+        </button>
+    </div>
+
+    @if (_cargando)
+    {
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 300px;">
+            <div class="spinner-border text-dark" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm rounded-4 p-4">
+            <!-- Barra de Filtro Interno -->
+            <div class="row mb-3">
+                <div class="col-12 col-md-4">
+                    <input type="text" class="form-control form-control-sm rounded-3" placeholder="Filtrar por nombre, dirección o teléfono..."
+                           @bind="_filtroBusqueda" @bind:event="oninput" />
+                </div>
+            </div>
+
+            @if (_clientesFiltrados == null || !_clientesFiltrados.Any())
+            {
+                <div class="text-center py-5">
+                    <p class="text-muted small">No se encontraron clientes registrados en el sistema.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="py-3">Cliente</th>
+                                <th class="py-3">Dirección de Obra</th>
+                                <th class="py-3">Teléfono</th>
+                                <th class="py-3 text-end">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in _clientesFiltrados)
+                            {
+                                <tr>
+                                    <td class="fw-semibold text-dark">@c.NombreApellido</td>
+                                    <td class="text-muted">@(string.IsNullOrEmpty(c.DireccionObra) ? "-" : c.DireccionObra)</td>
+                                    <td class="text-muted">@(string.IsNullOrEmpty(c.Telefono) ? "-" : c.Telefono)</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-dark me-1" title="Editar" @onclick="() => AbrirModalCliente(c)">
+                                            <i class="bi bi-pencil-square"></i> Editar
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool _cargando = true;
+    private List<ClienteResponse> _clientes = new();
+    private string _filtroBusqueda = string.Empty;
+
+    private IEnumerable<ClienteResponse> _clientesFiltrados =>
+        string.IsNullOrWhiteSpace(_filtroBusqueda)
+            ? _clientes
+            : _clientes.Where(c =>
+                (c.NombreApellido != null && c.NombreApellido.Contains(_filtroBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                (c.DireccionObra != null && c.DireccionObra.Contains(_filtroBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                (c.Telefono != null && c.Telefono.Contains(_filtroBusqueda, StringComparison.OrdinalIgnoreCase)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarClientes();
+    }
+
+    private async Task CargarClientes()
+    {
+        try
+        {
+            _cargando = true;
+            _clientes = await Http.GetFromJsonAsync<List<ClienteResponse>>("api/clientes?page=1&pageSize=50") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar clientes: {ex.Message}");
+        }
+        finally
+        {
+            _cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AbrirModalCliente(ClienteResponse? cliente = null)
+    {
+        var parameters = new DialogParameters();
+        if (cliente != null)
+        {
+            parameters.Add(nameof(ModalCliente.ClienteEdicion), cliente);
+        }
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var title = cliente == null ? "Registrar Cliente" : "Editar Cliente";
+        var dialog = await DialogService.ShowAsync<ModalCliente>(title, parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await CargarClientes();
+        }
+    }
+}
